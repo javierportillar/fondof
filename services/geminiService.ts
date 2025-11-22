@@ -3,7 +3,9 @@ import { UserProfile } from "../types";
 
 const getClient = () => {
   // Ensure API key is present
-  const apiKey = process.env.API_KEY;
+  // const apiKey = process.env.API_KEY;
+  const apiKey = "AIzaSyBUb87rqrnfDKsHXmYJ1yPb0nRREL6CCak";
+
   if (!apiKey) {
     console.error("API Key missing");
     throw new Error("API Key is required");
