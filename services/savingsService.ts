@@ -5,6 +5,10 @@ export const SavingsService = {
    * Registers a new contribution to the user's savings.
    * Returns a NEW UserProfile object (does not mutate).
    */
+  /**
+   * Registers a new contribution to the user's savings.
+   * Returns a NEW UserProfile object (does not mutate).
+   */
   addContribution: (user: UserProfile, amount: number, date: string): UserProfile => {
     const newHistoryItem = {
       id: `txn-${Date.now()}`,
@@ -24,6 +28,31 @@ export const SavingsService = {
         ...user.savings,
         balance: newBalance,
         lastContributionDate: isLatest ? date : user.savings.lastContributionDate,
+        history: [newHistoryItem, ...user.savings.history].sort((a, b) =>
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+      }
+    };
+  },
+
+  /**
+   * Registers a new withdrawal from the user's savings.
+   */
+  addWithdrawal: (user: UserProfile, amount: number, date: string): UserProfile => {
+    const newHistoryItem = {
+      id: `txn-${Date.now()}`,
+      date,
+      amount,
+      type: 'WITHDRAWAL' as const
+    };
+
+    const newBalance = user.savings.balance - amount;
+
+    return {
+      ...user,
+      savings: {
+        ...user.savings,
+        balance: newBalance,
         history: [newHistoryItem, ...user.savings.history].sort((a, b) =>
           new Date(b.date).getTime() - new Date(a.date).getTime()
         )

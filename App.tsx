@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { UserProfile, Role } from './types';
-import { MOCK_USERS } from './constants';
+import { UserProfile, Role, Product } from './types';
+import { USERS_DATA } from './data/users';
+import { PRODUCTS_DATA } from './data/products';
 
 // Components
 import LoginScreen from './components/LoginScreen';
@@ -21,11 +22,18 @@ import ProductList from './components/admin/ProductList';
 import LoanManager from './components/admin/LoanManager';
 import SavingsManager from './components/admin/SavingsManager';
 import SavingsForm from './components/admin/SavingsForm';
+import UserForm from './components/admin/UserForm';
+import ProductForm from './components/admin/ProductForm';
 
 export default function App() {
   const [users, setUsers] = useState<UserProfile[]>(() => {
     const saved = localStorage.getItem('fondof_users');
-    return saved ? JSON.parse(saved) : MOCK_USERS;
+    return saved ? JSON.parse(saved) : USERS_DATA;
+  });
+
+  const [products, setProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('fondof_products');
+    return saved ? JSON.parse(saved) : PRODUCTS_DATA;
   });
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
@@ -33,10 +41,14 @@ export default function App() {
   });
   const navigate = useNavigate();
   
-  // 3. User Data Persistence Effect
+  // 3. User & Product Data Persistence Effect
   useEffect(() => {
     localStorage.setItem('fondof_users', JSON.stringify(users));
   }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem('fondof_products', JSON.stringify(products));
+  }, [products]);
 
   // 3b. Session Persistence Effect
   useEffect(() => {
@@ -98,11 +110,29 @@ export default function App() {
     setUsers(updatedUsers);
   };
 
+  const handleAddUser = (newUser: UserProfile) => {
+    setUsers(prev => [...prev, newUser]);
+  };
+
+  const handleAddProduct = (newProduct: Product) => {
+    setProducts(prev => [newProduct, ...prev]);
+  };
+  
+  const handleUpdateProducts = (updatedProducts: Product[]) => {
+    setProducts(updatedProducts);
+  };
+
+  const handleUpdateUser = (updatedUser: UserProfile) => {
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+    // Also update current session user if it matches to keep UI in sync immediately?
+    // Actually `activeUser` is derived from `users` + `currentUserId`, so it will update automatically.
+  };
+
   return (
     <Routes>
         {/* Public Route */}
         <Route path="/login" element={
-            !activeUser ? <LoginScreen onLogin={handleLogin} /> : <Navigate to={activeUser.role === Role.ADMIN ? '/admin' : '/dashboard'} replace />
+            !activeUser ? <LoginScreen onLogin={handleLogin} users={users} /> : <Navigate to={activeUser.role === Role.ADMIN ? '/admin' : '/dashboard'} replace />
         } />
 
         {/* Redirect Root */}
@@ -112,7 +142,9 @@ export default function App() {
         {activeUser?.role === Role.ADMIN && (
             <Route path="/admin" element={<AdminLayout user={activeUser} onLogout={handleLogout} />}>
                 <Route index element={<UserList users={users} />} />
-                <Route path="products" element={<ProductList />} />
+                <Route path="users/new" element={<UserForm users={users} onAddUser={handleAddUser} />} />
+                <Route path="products" element={<ProductList products={products} onUpdateProducts={handleUpdateProducts} />} />
+                <Route path="products/new" element={<ProductForm onAddProduct={handleAddProduct} />} />
                 <Route path="users/:userId/loans" element={<LoanManager users={users} onUpdateUsers={handleUpdateUsers} />} />
                 <Route path="users/:userId/savings" element={<SavingsManager users={users} />} />
                 <Route path="users/:userId/savings/new" element={<SavingsForm users={users} onUpdateUsers={handleUpdateUsers} />} />
@@ -125,8 +157,8 @@ export default function App() {
             <Route element={<UserLayout user={activeUser} onLogout={handleLogout} />}>
                 <Route path="/dashboard" element={<Dashboard user={activeUser} />} />
                 <Route path="/loans" element={<LoanSection user={activeUser} />} />
-                <Route path="/savings" element={<SavingsSection user={activeUser} />} />
-                <Route path="/store" element={<StoreSection />} />
+                <Route path="/savings" element={<SavingsSection user={activeUser} onUpdateUser={handleUpdateUser} />} />
+                <Route path="/store" element={<StoreSection products={products} />} />
                 <Route path="/advisor" element={<Advisor user={activeUser} />} />
             </Route>
         )}

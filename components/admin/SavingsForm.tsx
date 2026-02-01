@@ -1,7 +1,7 @@
-import React from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react'; // Added useState
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'; // Added useLocation
 import { UserProfile } from '../../types';
-import { ArrowLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Save, X, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'; // Added icons
 import { SavingsService } from '../../services/savingsService';
 
 interface SavingsFormProps {
@@ -12,16 +12,19 @@ interface SavingsFormProps {
 export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) {
   const { userId, txnId } = useParams<{ userId: string; txnId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const user = users.find(u => u.id === userId);
 
-  if (!user) return <div>Usuario no encontrado</div>;
+  // Determine initial type from location state or existing transaction
+  const locationState = location.state as { defaultType?: 'DEPOSIT' | 'WITHDRAWAL' } | null;
+  const editingTransaction = txnId ? user?.savings.history.find(h => h.id === txnId) : null;
+  const initialType = editingTransaction?.type === 'WITHDRAWAL' ? 'WITHDRAWAL' : (locationState?.defaultType || 'DEPOSIT');
 
-  const editingTransaction = txnId ? user.savings.history.find(h => h.id === txnId) : null;
+  const [transactionType, setTransactionType] = useState<'DEPOSIT' | 'WITHDRAWAL'>(initialType);
   const isEditing = !!txnId;
 
-  if (isEditing && !editingTransaction) {
-      return <div>Transacción no encontrada</div>;
-  }
+  if (!user) return <div>Usuario no encontrado</div>;
+  if (isEditing && !editingTransaction) return <div>Transacción no encontrada</div>;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -33,9 +36,15 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
         let updatedUser;
         
         if (isEditing && editingTransaction) {
+            // Note: Currently updateContribution assumes deposits or generic editing. 
+            // If type change is needed, it's more complex. Ideally forbid changing type on edit for simplicity.
             updatedUser = SavingsService.updateContribution(user, editingTransaction.id, amount, date);
         } else {
-            updatedUser = SavingsService.addContribution(user, amount, date);
+            if (transactionType === 'DEPOSIT') {
+                updatedUser = SavingsService.addContribution(user, amount, date);
+            } else {
+                 updatedUser = SavingsService.addWithdrawal(user, amount, date);
+            }
         }
 
         // Update Global State
@@ -48,6 +57,8 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
       }
   };
 
+  const isDeposit = transactionType === 'DEPOSIT';
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -57,7 +68,7 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
             </Link>
             <div>
                 <h2 className="text-xl font-bold text-slate-800">
-                    {isEditing ? 'Editar Transacción' : 'Registrar Nueva Consignación'}
+                    {isEditing ? 'Editar Transacción' : (isDeposit ? 'Registrar Nueva Consignación' : 'Registrar Nuevo Retiro')}
                 </h2>
                 <p className="text-sm text-slate-500">Usuario: {user.name}</p>
             </div>
@@ -66,6 +77,36 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
          <div className="p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
                 
+                {/* Type Selector (Only on Create) */}
+                {!isEditing && (
+                    <div className="grid grid-cols-2 gap-4 p-1 bg-slate-100 rounded-xl">
+                        <button
+                            type="button"
+                            onClick={() => setTransactionType('DEPOSIT')}
+                            className={`flex items-center justify-center py-3 rounded-lg font-bold text-sm transition-all ${
+                                isDeposit 
+                                ? 'bg-white text-emerald-600 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <ArrowUpCircle size={18} className="mr-2" />
+                            Consignación
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setTransactionType('WITHDRAWAL')}
+                            className={`flex items-center justify-center py-3 rounded-lg font-bold text-sm transition-all ${
+                                !isDeposit 
+                                ? 'bg-white text-red-600 shadow-sm' 
+                                : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                        >
+                            <ArrowDownCircle size={18} className="mr-2" />
+                            Retiro
+                        </button>
+                    </div>
+                )}
+
                 {isEditing && (
                     <div className="bg-orange-50 text-orange-800 p-4 rounded-lg flex items-start gap-3">
                          <div className="bg-orange-100 p-1 rounded">
@@ -73,7 +114,7 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
                          </div>
                          <div className="text-sm">
                              <p className="font-bold">Modo Edición</p>
-                             <p>Estás modificando una transacción histórica. El saldo del usuario se recalculará automáticamente.</p>
+                             <p>Estás modificando una transacción histórica.</p>
                          </div>
                     </div>
                 )}
@@ -88,7 +129,11 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
                             required
                             min="0"
                             defaultValue={editingTransaction ? editingTransaction.amount : ''}
-                            className="w-full pl-10 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-xl text-slate-800"
+                            className={`w-full pl-10 pr-4 py-4 bg-slate-50 border rounded-xl focus:ring-2 outline-none font-bold text-xl text-slate-800 ${
+                                isDeposit 
+                                ? 'border-slate-200 focus:ring-emerald-500' 
+                                : 'border-red-100 focus:ring-red-500 focus:border-red-200'
+                            }`}
                             placeholder="0"
                             autoFocus
                         />
@@ -116,10 +161,14 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
                      </Link>
                      <button 
                         type="submit" 
-                        className="flex-[2] py-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200 flex justify-center items-center"
+                        className={`flex-[2] py-4 text-white font-bold rounded-xl transition-colors shadow-lg flex justify-center items-center ${
+                            isDeposit
+                            ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                            : 'bg-red-600 hover:bg-red-700 shadow-red-200'
+                        }`}
                      >
                         <Save size={20} className="mr-2" />
-                        {isEditing ? 'Guardar Cambios' : 'Registrar Ahorro'}
+                        {isEditing ? 'Guardar Cambios' : (isDeposit ? 'Registrar Ahorro' : 'Confirmar Retiro')}
                      </button>
                 </div>
             </form>

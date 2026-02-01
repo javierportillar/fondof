@@ -42,6 +42,12 @@ export enum Role {
   USER = 'USER'
 }
 
+export interface SavingsGoal {
+  name: string;
+  targetAmount: number;
+  createdAt: string;
+}
+
 export interface UserProfile {
   id: string;
   cedula: string;
@@ -53,6 +59,7 @@ export interface UserProfile {
   savings: SavingsAccount;
   loans: Loan[];
   creditLimit: number;
+  savingsGoal?: SavingsGoal;
 }
 
 export interface ChatMessage {

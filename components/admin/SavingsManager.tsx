@@ -49,13 +49,24 @@ export default function SavingsManager({ users }: SavingsManagerProps) {
                 </div>
             </div>
             
-            <Link 
-                to={`/admin/users/${userId}/savings/new`}
-                className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow-sm hover:bg-emerald-700 transition-colors"
-            >
-                <Plus size={20} className="mr-2" />
-                Registrar Consignación
-            </Link>
+            <div className="flex gap-3">
+                <Link 
+                    to={`/admin/users/${userId}/savings/new`}
+                    state={{ defaultType: 'WITHDRAWAL' }}
+                    className="bg-white text-red-600 border border-red-200 px-4 py-2 rounded-lg font-bold flex items-center shadow-sm hover:bg-red-50 transition-colors"
+                >
+                    <Plus size={20} className="mr-2" />
+                    Registrar Retiro
+                </Link>
+                <Link 
+                    to={`/admin/users/${userId}/savings/new`}
+                    state={{ defaultType: 'DEPOSIT' }}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold flex items-center shadow-sm hover:bg-emerald-700 transition-colors"
+                >
+                    <Plus size={20} className="mr-2" />
+                    Registrar Consignación
+                </Link>
+            </div>
         </div>
 
         <div className="p-6">

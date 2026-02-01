@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { MOCK_PRODUCTS } from '../constants';
 import { Product } from '../types';
 import { Search, ShoppingCart, Star, Plus, Minus, Trash2, X, MessageCircle, ShoppingBag, Sparkles, Heart, Cookie, LayoutGrid } from 'lucide-react';
 
-export default function StoreSection() {
+interface StoreSectionProps {
+  products: Product[];
+}
+
+export default function StoreSection({ products }: StoreSectionProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -21,7 +24,7 @@ export default function StoreSection() {
     { id: 'mecato', name: 'Mecato', icon: Cookie },
   ];
 
-  const filteredProducts = MOCK_PRODUCTS.filter(p => {
+  const filteredProducts = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           p.category.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -163,7 +166,14 @@ export default function StoreSection() {
               )}
 
               <div className="relative h-48 overflow-hidden bg-slate-100">
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <img 
+                    src={product.image} 
+                    alt={product.name} 
+                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/200x200?text=No+Image';
+                    }}
+                />
                 <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold shadow-sm text-slate-700 flex items-center">
                   <Star size={12} className="text-yellow-400 mr-1" fill="currentColor" />
                   {product.rating}

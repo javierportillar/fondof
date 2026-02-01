@@ -5,9 +5,10 @@ import { Lock, ArrowRight, AlertCircle } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (user: UserProfile) => void;
+  users: UserProfile[];
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, users }: LoginScreenProps) {
   const [cedula, setCedula] = useState('');
   const [error, setError] = useState('');
 
@@ -15,7 +16,8 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     e.preventDefault();
     setError('');
 
-    const user = MOCK_USERS.find(u => u.cedula === cedula);
+    const trimmedCedula = cedula.trim();
+    const user = users.find(u => u.cedula === trimmedCedula);
 
     if (user) {
       onLogin(user);

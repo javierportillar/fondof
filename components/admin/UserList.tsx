@@ -53,8 +53,8 @@ export default function UserList({ users }: UserListProps) {
           </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex justify-end">
+      {/* Search Bar & Actions */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="relative w-full md:w-80">
           <input
             type="text"
@@ -65,6 +65,12 @@ export default function UserList({ users }: UserListProps) {
           />
           <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
         </div>
+        <Link 
+            to="/admin/users/new"
+            className="w-full md:w-auto px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold shadow-sm hover:bg-emerald-700 transition-colors flex items-center justify-center"
+        >
+            <span className="mr-2 text-xl">+</span> Crear Nuevo Usuario
+        </Link>
       </div>
 
       {/* User List */}
