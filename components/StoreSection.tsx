@@ -1,20 +1,34 @@
 import React, { useState } from 'react';
 import { MOCK_PRODUCTS } from '../constants';
 import { Product } from '../types';
-import { Search, ShoppingCart, Star, Plus, Minus, Trash2, X, MessageCircle, ShoppingBag } from 'lucide-react';
+import { Search, ShoppingCart, Star, Plus, Minus, Trash2, X, MessageCircle, ShoppingBag, Sparkles, Heart, Cookie, LayoutGrid } from 'lucide-react';
 
 export default function StoreSection() {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<{product: Product, qty: number}[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Configuración del número de WhatsApp (Reemplazar con el número real de la cooperativa)
-  const WHATSAPP_NUMBER = "573001234567"; 
+  const WHATSAPP_NUMBER = "573017779454"; 
 
-  const filteredProducts = MOCK_PRODUCTS.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const categories = [
+    { id: 'all', name: 'Todo', icon: LayoutGrid },
+    { id: 'golden', name: 'Golden', icon: Star, isGolden: true },
+    { id: 'despensa', name: 'Despensa', icon: ShoppingBag },
+    { id: 'aseo hogar', name: 'Aseo Hogar', icon: Sparkles },
+    { id: 'cuidado personal', name: 'Cuidado Personal', icon: Heart },
+    { id: 'mecato', name: 'Mecato', icon: Cookie },
+  ];
+
+  const filteredProducts = MOCK_PRODUCTS.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.category.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (selectedCategory === 'all') return matchesSearch;
+    if (selectedCategory === 'golden') return matchesSearch && p.isGolden;
+    return matchesSearch && p.category.toLowerCase() === selectedCategory;
+  });
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -107,12 +121,47 @@ export default function StoreSection() {
         />
       </div>
 
+      {/* Category Filters */}
+      <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+        {categories.map(category => {
+          const Icon = category.icon;
+          const isSelected = selectedCategory === category.id;
+          return (
+            <button
+              key={category.id}
+              onClick={() => setSelectedCategory(category.id)}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition-all ${
+                isSelected 
+                  ? category.isGolden 
+                    ? 'bg-amber-100 text-amber-700 border-amber-200 ring-2 ring-amber-200'
+                    : 'bg-emerald-600 text-white shadow-md'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Icon size={18} className={category.isGolden && !isSelected ? 'text-amber-500' : ''} />
+              <span className="font-medium">{category.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Product Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProducts.map(product => {
           const inCart = cart.find(c => c.product.id === product.id);
           return (
-            <div key={product.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 group">
+            <div 
+              key={product.id} 
+              className={`bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 group relative ${
+                product.isGolden ? 'border-amber-200 ring-1 ring-amber-100' : 'border-slate-100'
+              }`}
+            >
+              {product.isGolden && (
+                <div className="absolute top-0 left-0 z-10 bg-amber-400 text-white text-[10px] font-bold px-2 py-1 rounded-br-lg shadow-sm flex items-center">
+                  <Star size={10} className="mr-1 fill-white" /> GOLDEN
+                </div>
+              )}
+
               <div className="relative h-48 overflow-hidden bg-slate-100">
                 <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-bold shadow-sm text-slate-700 flex items-center">
@@ -120,7 +169,7 @@ export default function StoreSection() {
                   {product.rating}
                 </div>
                 {inCart && (
-                  <div className="absolute top-2 left-2 bg-emerald-600 text-white px-2 py-1 rounded-md text-xs font-bold shadow-sm">
+                  <div className="absolute bottom-2 right-2 bg-emerald-600 text-white px-2 py-1 rounded-md text-xs font-bold shadow-sm">
                     En carrito: {inCart.qty}
                   </div>
                 )}
@@ -128,13 +177,15 @@ export default function StoreSection() {
               <div className="p-4 flex-1 flex flex-col">
                 <span className="text-xs text-emerald-600 font-medium mb-1 uppercase tracking-wide">{product.category}</span>
                 <h3 className="font-bold text-slate-800 text-lg mb-1">{product.name}</h3>
-                <p className="text-sm text-slate-400 mb-4 flex-1">Stock disponible: {product.stock}</p>
+                <p className="text-sm text-slate-500 mb-4 flex-1">{product.description || `Stock: ${product.stock}`}</p>
                 
                 <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-4">
                   <span className="text-xl font-bold text-slate-900">${product.price.toLocaleString()}</span>
                   <button 
                     onClick={() => addToCart(product)}
-                    className="bg-slate-900 hover:bg-emerald-600 text-white p-2.5 rounded-xl transition-colors shadow-sm active:scale-95 transform"
+                    className={`p-2.5 rounded-xl transition-colors shadow-sm active:scale-95 transform text-white ${
+                      product.isGolden ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-900 hover:bg-emerald-600'
+                    }`}
                   >
                     <Plus size={20} />
                   </button>
@@ -149,7 +200,7 @@ export default function StoreSection() {
         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
             <ShoppingBag size={48} className="mx-auto text-slate-300 mb-4" />
             <p className="text-slate-500 text-lg font-medium">No encontramos productos</p>
-            <p className="text-slate-400 text-sm">Intenta con otro término de búsqueda</p>
+            <p className="text-slate-400 text-sm">Intenta con otro término de búsqueda o categoría</p>
         </div>
       )}
 

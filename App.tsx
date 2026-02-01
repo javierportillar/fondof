@@ -1,109 +1,138 @@
-import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  Wallet, 
-  PiggyBank, 
-  ShoppingBasket, 
-  Bot, 
-  Menu, 
-  X 
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { UserProfile, Role } from './types';
+import { MOCK_USERS } from './constants';
+
+// Components
+import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
-import LoanSection from './components/LoanSection';
 import SavingsSection from './components/SavingsSection';
+import LoanSection from './components/LoanSection';
 import StoreSection from './components/StoreSection';
 import Advisor from './components/Advisor';
-import { UserProfile } from './types';
-import { MOCK_USER } from './constants';
+
+// Layouts
+import AdminLayout from './components/admin/AdminLayout';
+import UserLayout from './components/UserLayout';
+
+// Admin Components
+import UserList from './components/admin/UserList';
+import ProductList from './components/admin/ProductList';
+import LoanManager from './components/admin/LoanManager';
+import SavingsManager from './components/admin/SavingsManager';
+import SavingsForm from './components/admin/SavingsForm';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'dashboard' | 'loans' | 'savings' | 'store' | 'advisor'>('dashboard');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // Shared state for the demo
-  const [user, setUser] = useState<UserProfile>(MOCK_USER);
+  const [users, setUsers] = useState<UserProfile[]>(() => {
+    const saved = localStorage.getItem('fondof_users');
+    return saved ? JSON.parse(saved) : MOCK_USERS;
+  });
 
-  const NavItem = ({ view, icon: Icon, label }: { view: typeof currentView, icon: any, label: string }) => (
-    <button
-      onClick={() => {
-        setCurrentView(view);
-        setIsMobileMenuOpen(false);
-      }}
-      className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors duration-200 ${
-        currentView === view 
-          ? 'bg-emerald-600 text-white shadow-md' 
-          : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
-      }`}
-    >
-      <Icon size={20} />
-      <span className="font-medium">{label}</span>
-    </button>
-  );
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
+    return localStorage.getItem('fondof_current_user');
+  });
+  const navigate = useNavigate();
+  
+  // 3. User Data Persistence Effect
+  useEffect(() => {
+    localStorage.setItem('fondof_users', JSON.stringify(users));
+  }, [users]);
+
+  // 3b. Session Persistence Effect
+  useEffect(() => {
+    if (currentUserId) {
+      localStorage.setItem('fondof_current_user', currentUserId);
+    } else {
+      localStorage.removeItem('fondof_current_user');
+    }
+  }, [currentUserId]);
+
+  // 4. Auto-Logout Effect
+  useEffect(() => {
+    // 30 minutes in milliseconds
+    const INACTIVITY_LIMIT = 30 * 60 * 1000; 
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (currentUserId) {
+        timeoutId = setTimeout(() => {
+           alert("Sesión cerrada por inactividad.");
+           handleLogout();
+        }, INACTIVITY_LIMIT);
+      }
+    };
+
+    // Listeners for activity
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => document.addEventListener(event, resetTimer));
+
+    // Initial start
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => document.removeEventListener(event, resetTimer));
+    };
+  }, [currentUserId]); // Re-run when user logs in/out
+
+  // Derived Active User
+  const activeUser = currentUserId ? users.find(u => u.id === currentUserId) || null : null;
+
+  const handleLogin = (user: UserProfile) => {
+    setCurrentUserId(user.id);
+    // Redirect based on role
+    if (user.role === Role.ADMIN) {
+        navigate('/admin');
+    } else {
+        navigate('/dashboard');
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUserId(null); // This triggers the effect to remove from localStorage
+    navigate('/login');
+  };
+
+  const handleUpdateUsers = (updatedUsers: UserProfile[]) => {
+    setUsers(updatedUsers);
+  };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      {/* Sidebar Navigation (Desktop) */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 h-full shadow-sm z-10">
-        <div className="p-6 border-b border-slate-100 flex items-center space-x-2">
-          <div className="bg-emerald-600 p-2 rounded-lg">
-            <Wallet className="text-white" size={24} />
-          </div>
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">Fondo Fortuna</h1>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <NavItem view="dashboard" icon={LayoutDashboard} label="Resumen General" />
-          <NavItem view="loans" icon={Wallet} label="Mis Préstamos" />
-          <NavItem view="savings" icon={PiggyBank} label="Ahorro Programado" />
-          <NavItem view="store" icon={ShoppingBasket} label="Tienda Solidaria" />
-          <div className="pt-4 border-t border-slate-100 mt-4">
-            <NavItem view="advisor" icon={Bot} label="Asesor IA" />
-          </div>
-        </nav>
-        <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center space-x-3">
-            <img src="https://picsum.photos/40/40" alt="User" className="w-10 h-10 rounded-full border-2 border-emerald-100" />
-            <div>
-              <p className="text-sm font-semibold text-slate-800">{user.name}</p>
-              <p className="text-xs text-slate-500">Socio #{user.id}</p>
-            </div>
-          </div>
-        </div>
-      </aside>
+    <Routes>
+        {/* Public Route */}
+        <Route path="/login" element={
+            !activeUser ? <LoginScreen onLogin={handleLogin} /> : <Navigate to={activeUser.role === Role.ADMIN ? '/admin' : '/dashboard'} replace />
+        } />
 
-      {/* Mobile Header */}
-      <div className="md:hidden fixed w-full bg-white border-b border-slate-200 z-20 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-           <div className="bg-emerald-600 p-1.5 rounded-lg">
-            <Wallet className="text-white" size={20} />
-          </div>
-          <h1 className="text-lg font-bold text-slate-800">Fondo Fortuna</h1>
-        </div>
-        <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-600">
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
+        {/* Redirect Root */}
+        <Route path="/" element={<Navigate to={activeUser ? (activeUser.role === Role.ADMIN ? '/admin' : '/dashboard') : '/login'} replace />} />
 
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-white z-10 pt-16 px-4 md:hidden flex flex-col space-y-2">
-          <NavItem view="dashboard" icon={LayoutDashboard} label="Resumen General" />
-          <NavItem view="loans" icon={Wallet} label="Mis Préstamos" />
-          <NavItem view="savings" icon={PiggyBank} label="Ahorro Programado" />
-          <NavItem view="store" icon={ShoppingBasket} label="Tienda Solidaria" />
-          <NavItem view="advisor" icon={Bot} label="Asesor IA" />
-        </div>
-      )}
+        {/* Admin Routes */}
+        {activeUser?.role === Role.ADMIN && (
+            <Route path="/admin" element={<AdminLayout user={activeUser} onLogout={handleLogout} />}>
+                <Route index element={<UserList users={users} />} />
+                <Route path="products" element={<ProductList />} />
+                <Route path="users/:userId/loans" element={<LoanManager users={users} onUpdateUsers={handleUpdateUsers} />} />
+                <Route path="users/:userId/savings" element={<SavingsManager users={users} />} />
+                <Route path="users/:userId/savings/new" element={<SavingsForm users={users} onUpdateUsers={handleUpdateUsers} />} />
+                <Route path="users/:userId/savings/edit/:txnId" element={<SavingsForm users={users} onUpdateUsers={handleUpdateUsers} />} />
+            </Route>
+        )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto h-full pt-16 md:pt-0 p-4 md:p-8">
-        <div className="max-w-6xl mx-auto">
-          {currentView === 'dashboard' && <Dashboard user={user} />}
-          {currentView === 'loans' && <LoanSection user={user} />}
-          {currentView === 'savings' && <SavingsSection user={user} />}
-          {currentView === 'store' && <StoreSection />}
-          {currentView === 'advisor' && <Advisor user={user} />}
-        </div>
-      </main>
-    </div>
+        {/* User Routes */}
+        {activeUser?.role === Role.USER && (
+            <Route element={<UserLayout user={activeUser} onLogout={handleLogout} />}>
+                <Route path="/dashboard" element={<Dashboard user={activeUser} />} />
+                <Route path="/loans" element={<LoanSection user={activeUser} />} />
+                <Route path="/savings" element={<SavingsSection user={activeUser} />} />
+                <Route path="/store" element={<StoreSection />} />
+                <Route path="/advisor" element={<Advisor user={activeUser} />} />
+            </Route>
+        )}
+
+        {/* Catch All / Fallback */}
+        <Route path="*" element={<Navigate to={activeUser ? (activeUser.role === Role.ADMIN ? '/admin' : '/dashboard') : '/login'} replace />} />
+    </Routes>
   );
 }

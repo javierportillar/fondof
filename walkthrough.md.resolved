@@ -1,0 +1,43 @@
+# Walkthrough: User & Admin Architecture
+
+## Overview
+We have successfully refactored the application to support multiple users with distinct roles (**Admin** and **User**). The application now features a secure login screen and role-based dashboards.
+
+## Credentials to Test
+Use the following credentials to test the different roles:
+
+### 1. Administrator
+- **Cédula**: `1234567890`
+- **Capabilities**:
+  - View all registered users.
+  - Assign loans and savings to users.
+  - Edit store products (Price, Name, Category).
+
+### 2. Regular User (Carlos Rodríguez)
+- **Cédula**: `987654321`
+- **Capabilities**:
+  - View personal Dashboard (Savings, Loans).
+  - Access the Store.
+  - View personal Advisor.
+
+## Key Changes
+
+### 1. Login Screen
+A new entry point for the application. It authenticates users based on their Cédula.
+![Login Screen Mockup](https://via.placeholder.com/600x400/f1f5f9/0f172a?text=Login+Screen+Preview) 
+*(Note: Actual screen matches the modern design style of the app)*
+
+### 2. Admin Dashboard
+When logging in as an Admin, you are taken to a specialized dashboard.
+- **Usuarios Tab**: List of all users. Click "Asignar Préstamo" to interact (Logic ready for expansion).
+- **Productos Tab**: Grid of store products. Click the "Edit" (Pencil) icon on a product to modify its details inline. Changes reflected instantly in the store.
+
+### 3. Architecture Updates
+- **[types.ts](file:///Users/javierportillarosero/Documents/PROG/fondof/types.ts)**: Added `Role` enum and [UserProfile](file:///Users/javierportillarosero/Documents/PROG/fondof/types.ts#45-57) extensions.
+- **[constants.ts](file:///Users/javierportillarosero/Documents/PROG/fondof/constants.ts)**: Replaced single mock user with `MOCK_USERS` array.
+- **[App.tsx](file:///Users/javierportillarosero/Documents/PROG/fondof/App.tsx)**: Implemented authentication flow and route protection.
+
+## Next Steps
+- Implement actual persistence for "Assign Loan" feature (currently just a UI button).
+- Add "Create New User" functionality for Admins.
+- Connect to a real backend.

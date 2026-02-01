@@ -1,124 +1,262 @@
 import React from 'react';
 import { UserProfile } from '../types';
-import { TrendingUp, CreditCard, AlertCircle, DollarSign } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { TrendingUp, Wallet, AlertCircle, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell,
+  BarChart,
+  Bar,
+  Legend
+} from 'recharts';
 
 interface DashboardProps {
   user: UserProfile;
 }
 
-const COLORS = ['#059669', '#e2e8f0'];
+const COLORS = ['#10b981', '#e2e8f0']; // Emerald for paid, Slate for remaining
 
 export default function Dashboard({ user }: DashboardProps) {
   const totalDebt = user.loans.reduce((acc, loan) => acc + loan.remainingAmount, 0);
-  const creditUtilization = (totalDebt / user.creditLimit) * 100;
+  
+  // Calculate monthly deductions (Loan Payments + Savings Contribution)
+  const totalLoanPayments = user.loans.reduce((acc, loan) => acc + loan.monthlyPayment, 0);
+  const totalDeductions = totalLoanPayments + user.savings.monthlyContribution;
 
-  const savingsData = user.savings.history.slice(0, 5).reverse().map(h => ({
-    name: new Date(h.date).toLocaleDateString('es-ES', { month: 'short' }),
-    amount: h.amount
-  }));
+  // Prepare data for Savings Trend (AreaChart)
+  const savingsData = user.savings.history
+    .slice(0, 6)
+    .reverse()
+    .map(h => ({
+      name: new Date(h.date).toLocaleDateString('es-ES', { month: 'short' }),
+      amount: h.amount,
+      fullDate: new Date(h.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
+    }));
 
-  const loanPieData = [
-    { name: 'Pagado', value: user.loans[0].amount - user.loans[0].remainingAmount },
-    { name: 'Pendiente', value: user.loans[0].remainingAmount },
-  ];
+  // Prepare data for Loan Progress (BarChart)
+  const activeLoan = user.loans[0]; // Assuming single active loan for demo
+  const loanProgressData = activeLoan ? [
+    {
+      name: 'Progreso',
+      pagado: activeLoan.paymentsMade,
+      pendiente: activeLoan.termMonths - activeLoan.paymentsMade,
+    }
+  ] : [];
+
+  // Prepare data for Debt Composition (PieChart)
+  const debtPieData = activeLoan ? [
+    { name: 'Capital Pagado', value: activeLoan.amount - activeLoan.remainingAmount },
+    { name: 'Saldo Pendiente', value: activeLoan.remainingAmount },
+  ] : [];
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-800">Hola, {user.name} 👋</h2>
-        <p className="text-slate-500">Aquí tienes el resumen de tus finanzas hoy.</p>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Resumen Financiero</h2>
+          <p className="text-slate-500">Detalle de tus ahorros, deudas y compromisos mensuales.</p>
+        </div>
+        <div className="flex items-center space-x-2 text-sm bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span className="text-slate-600">Actualizado hoy</span>
+        </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Ahorro Total</p>
-            <h3 className="text-2xl font-bold text-emerald-600">${user.savings.balance.toLocaleString()}</h3>
-            <p className="text-xs text-emerald-600 mt-2 flex items-center">
-              <TrendingUp size={14} className="mr-1" /> +{user.savings.interestEarned.toLocaleString()} intereses ganados
+        
+        {/* Card 1: Total Ahorrado */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-emerald-50 to-transparent opacity-50"></div>
+          <div className="relative z-10">
+             <div className="flex items-center justify-between mb-4">
+              <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
+                <Wallet size={24} />
+              </div>
+              <span className="text-xs font-medium px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full flex items-center">
+                Ahorro
+              </span>
+            </div>
+            <p className="text-sm font-medium text-slate-500">Total Ahorrado</p>
+            <h3 className="text-3xl font-bold text-slate-800 mt-1">${user.savings.balance.toLocaleString()}</h3>
+            <p className="text-sm text-emerald-600 mt-2 flex items-center font-medium">
+              <TrendingUp size={16} className="mr-1" /> 
+              +${user.savings.interestEarned.toLocaleString()} rendimientos
             </p>
           </div>
-          <div className="bg-emerald-100 p-3 rounded-lg">
-            <DollarSign className="text-emerald-600" size={24} />
-          </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Deuda Activa</p>
-            <h3 className="text-2xl font-bold text-slate-800">${totalDebt.toLocaleString()}</h3>
-            <p className="text-xs text-slate-500 mt-2">Próximo pago: {user.loans[0]?.nextPaymentDate}</p>
-          </div>
-          <div className="bg-orange-100 p-3 rounded-lg">
-            <AlertCircle className="text-orange-600" size={24} />
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-slate-500 mb-1">Cupo Disponible</p>
-            <h3 className="text-2xl font-bold text-blue-600">${(user.creditLimit - totalDebt).toLocaleString()}</h3>
-            <div className="w-full bg-slate-200 rounded-full h-1.5 mt-3">
-              <div 
-                className="bg-blue-600 h-1.5 rounded-full" 
-                style={{ width: `${Math.min(creditUtilization, 100)}%` }}
-              ></div>
+        {/* Card 2: Deuda Total */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-orange-50 to-transparent opacity-50"></div>
+          <div className="relative z-10">
+             <div className="flex items-center justify-between mb-4">
+              <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
+                <AlertCircle size={24} />
+              </div>
+              {totalDebt > 0 ? (
+                <span className="text-xs font-medium px-2 py-1 bg-orange-50 text-orange-700 rounded-full flex items-center">
+                  Activo
+                </span>
+              ) : (
+                <span className="text-xs font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded-full">
+                  Sin deuda
+                </span>
+              )}
             </div>
+            <p className="text-sm font-medium text-slate-500">Deuda Total</p>
+            <h3 className="text-3xl font-bold text-slate-800 mt-1">${totalDebt.toLocaleString()}</h3>
+            {activeLoan && (
+               <div className="flex items-center mt-2 text-sm text-slate-500">
+                 <span className="mr-2">Próximo pago:</span>
+                 <span className="font-medium text-slate-800 bg-slate-100 px-2 py-0.5 rounded">{activeLoan.nextPaymentDate}</span>
+               </div>
+            )}
           </div>
-          <div className="bg-blue-100 p-3 rounded-lg">
-            <CreditCard className="text-blue-600" size={24} />
+        </div>
+
+        {/* Card 3: Próximas Deducciones */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-shadow">
+          <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-blue-50 to-transparent opacity-50"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                <Calendar size={24} />
+              </div>
+              <span className="text-xs font-medium px-2 py-1 bg-blue-50 text-blue-700 rounded-full">
+                Mensual
+              </span>
+            </div>
+            <p className="text-sm font-medium text-slate-500">Próximas Deducciones</p>
+            <h3 className="text-3xl font-bold text-slate-800 mt-1">${totalDeductions.toLocaleString()}</h3>
+            <div className="mt-2 space-y-1">
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Ahorro:</span>
+                <span className="font-medium">${user.savings.monthlyContribution.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500">
+                <span>Préstamos:</span>
+                <span className="font-medium">${totalLoanPayments.toLocaleString()}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Savings Growth */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 mb-4">Crecimiento de Ahorros</h3>
-          <div className="h-64">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Main Chart: Savings Trend (AreaChart) */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">Tendencia de Ahorro</h3>
+              <p className="text-sm text-slate-500">Crecimiento de tu capital en los últimos 6 meses</p>
+            </div>
+          </div>
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={savingsData}>
+              <AreaChart data={savingsData}>
+                <defs>
+                  <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b'}} />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  cursor={{fill: '#f0fdf4'}}
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#64748b', fontSize: 12}} 
+                  dy={10}
                 />
-                <Bar dataKey="amount" fill="#10b981" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#64748b', fontSize: 12}} 
+                  tickFormatter={(value) => `$${value/1000}k`}
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  cursor={{stroke: '#10b981', strokeWidth: 1, strokeDasharray: '4 4'}}
+                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Monto']}
+                  labelFormatter={(label) => `Periodo: ${label}`}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="amount" 
+                  stroke="#10b981" 
+                  strokeWidth={3}
+                  fillOpacity={1} 
+                  fill="url(#colorSavings)" 
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Loan Status */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-bold text-slate-800 mb-4">Estado del Préstamo Actual</h3>
-          <div className="h-64 flex items-center justify-center">
-             <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={loanPieData}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {loanPieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-             </ResponsiveContainer>
-             <div className="absolute text-center">
-               <p className="text-xs text-slate-500">Pagado</p>
-               <p className="text-xl font-bold text-emerald-600">
-                 {Math.round(((user.loans[0].amount - user.loans[0].remainingAmount) / user.loans[0].amount) * 100)}%
-               </p>
+        {/* Secondary Section: Loan Details */}
+        <div className="space-y-6">
+          {/* Loan Progress */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Progreso del Préstamo</h3>
+            <p className="text-sm text-slate-500 mb-4">Cuotas pagadas vs. pendientes</p>
+            
+            {activeLoan ? (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center text-sm font-medium text-emerald-600">
+                    <CheckCircle2 size={16} className="mr-1" />
+                    {activeLoan.paymentsMade} Pagadas
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    {activeLoan.termMonths - activeLoan.paymentsMade} Pendientes
+                  </div>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-3 mb-4">
+                  <div 
+                    className="bg-emerald-500 h-3 rounded-full transition-all duration-500" 
+                    style={{ width: `${(activeLoan.paymentsMade / activeLoan.termMonths) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>Inicio: {activeLoan.startDate}</span>
+                  <span>Fin: {activeLoan.termMonths} meses</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-slate-400">No tienes préstamos activos.</p>
+            )}
+          </div>
+
+          {/* Debt Composition */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+             <h3 className="text-lg font-bold text-slate-800 mb-2">Estado de Deuda</h3>
+             <div className="flex-1 min-h-[150px] relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={debtPieData}
+                      innerRadius={40}
+                      outerRadius={60}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      <Cell fill="#10b981" /> {/* Pagado */}
+                      <Cell fill="#e2e8f0" /> {/* Pendiente */}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, '']} />
+                    <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{fontSize: '12px'}}/>
+                  </PieChart>
+                </ResponsiveContainer>
              </div>
           </div>
         </div>
