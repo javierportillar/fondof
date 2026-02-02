@@ -23,10 +23,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user ?? null)
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
       
-      if (session?.user) {
-        const userProfile = await AuthService.getUserProfile(session.user.id)
+      if (currentUser) {
+        const userProfile = await AuthService.getUserProfile(currentUser.id)
         setProfile(userProfile)
       }
       
@@ -35,12 +36,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getSession()
 
-    // Listen for auth changes
-    const { data: { subscription } } = AuthService.onAuthChange(async (user) => {
-      setUser(user)
+    // Listen for auth changes (event, session)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
       
-      if (user) {
-        const userProfile = await AuthService.getUserProfile(user.id)
+      if (currentUser) {
+        const userProfile = await AuthService.getUserProfile(currentUser.id)
         setProfile(userProfile)
       } else {
         setProfile(null)

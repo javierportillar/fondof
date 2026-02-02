@@ -102,6 +102,12 @@ export const AuthService = {
    */
   async getUserProfile(userId: string): Promise<UserProfile | null> {
     try {
+      if (!userId) {
+        console.warn('[AuthService] getUserProfile sin userId');
+        throw new Error('User ID vacío');
+      }
+      console.log('[AuthService] getUserProfile userId:', userId);
+
       // Get user data
       const { data: userData, error: userError } = await supabase
         .from('users')

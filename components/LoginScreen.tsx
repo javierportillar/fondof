@@ -1,28 +1,34 @@
 import React, { useState } from 'react';
-import { UserProfile } from '../types';
-import { MOCK_USERS } from '../constants';
-import { Lock, ArrowRight, AlertCircle } from 'lucide-react';
+import { Lock, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 interface LoginScreenProps {
-  onLogin: (user: UserProfile) => void;
-  users: UserProfile[];
+  onLogin: (email: string, password: string) => Promise<void>;
 }
 
-export default function LoginScreen({ onLogin, users }: LoginScreenProps) {
-  const [cedula, setCedula] = useState('');
+export default function LoginScreen({ onLogin }: LoginScreenProps) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const trimmedCedula = cedula.trim();
-    const user = users.find(u => u.cedula === trimmedCedula);
+    console.log('[Login] Botón presionado');
+    console.log('[Login] Email ingresado:', email);
+    console.log('[Login] Password longitud:', password.length);
 
-    if (user) {
-      onLogin(user);
-    } else {
-      setError('Cédula no encontrada. Por favor verifique e intente nuevamente.');
+    try {
+      await onLogin(email.trim(), password);
+      console.log('[Login] Autenticación exitosa, navegando a dashboard');
+    } catch (err: any) {
+      console.warn('[Login] Error en autenticación:', err?.message || err);
+      setError(err?.message || 'No se pudo iniciar sesión. Intenta nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -34,23 +40,48 @@ export default function LoginScreen({ onLogin, users }: LoginScreenProps) {
             <Lock size={32} />
           </div>
           <h1 className="text-3xl font-bold text-slate-800">Bienvenido</h1>
-          <p className="text-slate-500 mt-2">Ingresa tu número de cédula para continuar</p>
+          <p className="text-slate-500 mt-2">Ingresa tu correo y contraseña para continuar</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label htmlFor="cedula" className="block text-sm font-medium text-slate-700 mb-2">
-              Número de Cédula
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+              Correo electrónico
             </label>
             <input
-              type="text"
-              id="cedula"
-              value={cedula}
-              onChange={(e) => setCedula(e.target.value)}
+              type="email"
+              id="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-800 placeholder-slate-400"
-              placeholder="Ej: 1234567890"
+              placeholder="Ej: usuario@correo.com"
               autoFocus
             />
+          </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
+              Contraseña
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 pr-12 rounded-lg border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-slate-800 placeholder-slate-400"
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-slate-700"
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -62,9 +93,10 @@ export default function LoginScreen({ onLogin, users }: LoginScreenProps) {
 
           <button
             type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center group"
+            disabled={loading}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center group"
           >
-            Ingresar
+            {loading ? 'Ingresando...' : 'Ingresar'}
             <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
           </button>
         </form>
@@ -74,18 +106,6 @@ export default function LoginScreen({ onLogin, users }: LoginScreenProps) {
           <p className="mt-1">Sistema Seguro v2.0</p>
         </div>
         
-        {/* Helper for demo purposes */}
-        <div className="mt-8 p-4 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500">
-             <p className="font-bold mb-2">Credenciales de Prueba:</p>
-             <div className="flex justify-between mb-1">
-                 <span>Admin:</span>
-                 <span className="font-mono bg-slate-200 px-1 rounded">1234567890</span>
-             </div>
-             <div className="flex justify-between">
-                 <span>Usuario:</span>
-                 <span className="font-mono bg-slate-200 px-1 rounded">987654321</span>
-             </div>
-        </div>
       </div>
     </div>
   );

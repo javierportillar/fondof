@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserProfile, Role } from '../../types';
+import { supabase } from '../../lib/supabase';
 import { 
   Search, 
   DollarSign, 
@@ -11,17 +12,64 @@ import {
   Check
 } from 'lucide-react';
 
-interface UserListProps {
-  users: UserProfile[];
-}
-
-export default function UserList({ users }: UserListProps) {
+export default function UserList() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('[UserList] Fetching users from Supabase');
+
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('[UserList] Supabase error', error);
+          throw error;
+        }
+
+        const mapped = (data || []).map((u) => ({
+          id: u.id,
+          name: u.name,
+          cedula: u.cedula,
+          email: u.email,
+          phoneNumber: u.phone_number,
+          createdAt: u.created_at,
+          role: u.role === 'ADMIN' ? Role.ADMIN : Role.USER,
+          creditLimit: u.credit_limit ?? 0,
+          savings: {
+            balance: 0,
+            monthlyContribution: 0,
+            lastContributionDate: '',
+            interestEarned: 0,
+            history: []
+          },
+          loans: []
+        })) as UserProfile[];
+
+        console.log('[UserList] Users received:', mapped.length);
+        setUsers(mapped);
+      } catch (err: any) {
+        setError(err.message || 'No se pudo cargar la lista de usuarios.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   // Filter Helpers
   const filteredUsers = users.filter(u => 
@@ -40,6 +88,20 @@ export default function UserList({ users }: UserListProps) {
 
   return (
     <div className="space-y-6">
+      {loading && (
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-sm">
+          Cargando usuarios...
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && (
+      <>
       {/* Helper Banner */}
       <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-start">
           <div className="bg-emerald-100 p-2 rounded-full text-emerald-600 mr-4">
@@ -181,6 +243,8 @@ export default function UserList({ users }: UserListProps) {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

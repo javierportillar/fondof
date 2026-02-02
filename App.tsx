@@ -34,7 +34,7 @@ function AppRoutes() {
   }
 
   if (!profile) {
-    return <LoginScreen onLogin={login} users={[]} />;
+    return <LoginScreen onLogin={login} />;
   }
 
   return (
