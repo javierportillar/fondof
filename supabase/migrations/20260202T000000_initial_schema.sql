@@ -25,6 +25,7 @@ create table if not exists public.users (
   phone_number    text not null,
   role            text not null check (role in ('ADMIN','USER')),
   credit_limit    numeric default 0,
+  password_hash   text not null default '',
   created_at      timestamptz not null default now()
 );
 
@@ -83,6 +84,24 @@ create table if not exists public.products (
   created_at  timestamptz not null default now()
 );
 
+-- Compras (cabecera) y detalle
+create table if not exists public.purchases (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references public.users(id) on delete cascade,
+  total_amount numeric not null,
+  created_at  timestamptz not null default now()
+);
+
+create table if not exists public.purchase_items (
+  id             uuid primary key default gen_random_uuid(),
+  purchase_id    uuid not null references public.purchases(id) on delete cascade,
+  product_id     uuid not null references public.products(id) on delete restrict,
+  quantity       integer not null,
+  unit_price     numeric not null,
+  subtotal       numeric not null,
+  created_at     timestamptz not null default now()
+);
+
 -------------------------------------------------------------------------------
 -- Índices
 -------------------------------------------------------------------------------
@@ -96,6 +115,9 @@ create index if not exists idx_loans_user on public.loans (user_id);
 create index if not exists idx_loans_status on public.loans (status);
 create index if not exists idx_products_category on public.products (category);
 create index if not exists idx_products_golden on public.products (is_golden);
+create index if not exists idx_purchases_user on public.purchases (user_id);
+create index if not exists idx_purchase_items_purchase on public.purchase_items (purchase_id);
+create index if not exists idx_purchase_items_product on public.purchase_items (product_id);
 
 -------------------------------------------------------------------------------
 -- Row Level Security
@@ -109,72 +131,121 @@ alter table public.products enable row level security;
 
 -- Policies: usuarios estándar (USER) solo ven/modifican lo suyo; admin todo.
 
--- USERS
-create policy if not exists users_select_self_or_admin
+-- USERS (sin dependencia de auth.uid, abierto a todas las filas)
+drop policy if exists users_select_self_or_admin on public.users;
+create policy users_select_all
   on public.users for select
-  using (id = auth.uid() or is_admin());
+  using (true);
 
-create policy if not exists users_update_self_or_admin
+drop policy if exists users_update_self_or_admin on public.users;
+create policy users_update_all
   on public.users for update
-  using (id = auth.uid() or is_admin());
+  using (true)
+  with check (true);
 
--- Opcional: inserts suelen venir desde servicio/función; permitir admin o servicio.
-create policy if not exists users_insert_admin_only
-  on public.users for insert
-  with check (is_admin());
+drop policy if exists users_insert_admin_only on public.users;
+create policy users_insert_all
+  on public.users
+  for insert
+  with check (true);
 
 -- SAVINGS_ACCOUNTS
-create policy if not exists savings_accounts_select_owner_or_admin
+drop policy if exists savings_accounts_select_owner_or_admin on public.savings_accounts;
+create policy savings_accounts_select_owner_or_admin
   on public.savings_accounts for select
-  using (user_id = auth.uid() or is_admin());
+  using (true);
 
-create policy if not exists savings_accounts_modify_owner_or_admin
-  on public.savings_accounts for insert, update, delete
-  using (user_id = auth.uid() or is_admin())
-  with check (user_id = auth.uid() or is_admin());
+drop policy if exists savings_accounts_modify_owner_or_admin on public.savings_accounts;
+create policy savings_accounts_modify_owner_or_admin
+  on public.savings_accounts for all
+  using (true)
+  with check (true);
 
 -- SAVINGS_HISTORY
-create policy if not exists savings_history_select_owner_or_admin
+drop policy if exists savings_history_select_owner_or_admin on public.savings_history;
+create policy savings_history_select_owner_or_admin
   on public.savings_history for select
-  using (user_id = auth.uid() or is_admin());
+  using (true);
 
-create policy if not exists savings_history_modify_owner_or_admin
-  on public.savings_history for insert, update, delete
-  using (user_id = auth.uid() or is_admin())
-  with check (user_id = auth.uid() or is_admin());
+drop policy if exists savings_history_modify_owner_or_admin on public.savings_history;
+create policy savings_history_modify_owner_or_admin
+  on public.savings_history for all
+  using (true)
+  with check (true);
 
 -- SAVINGS_GOALS
-create policy if not exists savings_goals_select_owner_or_admin
+drop policy if exists savings_goals_select_owner_or_admin on public.savings_goals;
+create policy savings_goals_select_owner_or_admin
   on public.savings_goals for select
-  using (user_id = auth.uid() or is_admin());
+  using (true);
 
-create policy if not exists savings_goals_modify_owner_or_admin
-  on public.savings_goals for insert, update, delete
-  using (user_id = auth.uid() or is_admin())
-  with check (user_id = auth.uid() or is_admin());
+drop policy if exists savings_goals_modify_owner_or_admin on public.savings_goals;
+create policy savings_goals_modify_owner_or_admin
+  on public.savings_goals for all
+  using (true)
+  with check (true);
 
 -- LOANS
-create policy if not exists loans_select_owner_or_admin
+drop policy if exists loans_select_owner_or_admin on public.loans;
+create policy loans_select_owner_or_admin
   on public.loans for select
-  using (user_id = auth.uid() or is_admin());
+  using (true);
 
-create policy if not exists loans_modify_owner_or_admin
-  on public.loans for insert, update, delete
-  using (user_id = auth.uid() or is_admin())
-  with check (user_id = auth.uid() or is_admin());
+drop policy if exists loans_modify_owner_or_admin on public.loans;
+create policy loans_modify_owner_or_admin
+  on public.loans for all
+  using (true)
+  with check (true);
 
 -- PRODUCTS (lectura pública; escritura solo admin)
-create policy if not exists products_select_public
+drop policy if exists products_select_public on public.products;
+create policy products_select_public
   on public.products for select
   using (true);
 
-create policy if not exists products_modify_admin_only
-  on public.products for insert, update, delete
-  using (is_admin())
-  with check (is_admin());
+drop policy if exists products_modify_admin_only on public.products;
+create policy products_modify_admin_only
+  on public.products for all
+  using (true)
+  with check (true);
+
+-- PURCHASES
+drop policy if exists purchases_select_all on public.purchases;
+create policy purchases_select_all
+  on public.purchases for select
+  using (true);
+
+drop policy if exists purchases_modify_all on public.purchases;
+create policy purchases_modify_all
+  on public.purchases for all
+  using (true)
+  with check (true);
+
+-- PURCHASE_ITEMS
+drop policy if exists purchase_items_select_all on public.purchase_items;
+create policy purchase_items_select_all
+  on public.purchase_items for select
+  using (true);
+
+drop policy if exists purchase_items_modify_all on public.purchase_items;
+create policy purchase_items_modify_all
+  on public.purchase_items for all
+  using (true)
+  with check (true);
+
+
+create table if not exists public.password_resets (
+  token uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  expires_at timestamptz not null default now() + interval '30 minutes',
+  used boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 
 -------------------------------------------------------------------------------
 -- Tips de sincronización con auth.users (opcional, no automático aquí)
 -- Puedes crear un trigger que copie auth.users.id -> public.users.id en registros nuevos,
 -- o manejar el alta vía RPC con la claim `role` en el JWT.
 -------------------------------------------------------------------------------
+-- Eliminado: ya no sincronizamos automáticamente desde auth.users

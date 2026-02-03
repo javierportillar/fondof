@@ -16,6 +16,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const timeout = setTimeout(() => {
+      console.warn('[Login] Timeout alcanzado');
+      setError('La autenticación está tardando. Verifica tu conexión e intenta de nuevo.');
+      setLoading(false);
+    }, 15000);
 
     console.log('[Login] Botón presionado');
     console.log('[Login] Email ingresado:', email);
@@ -28,6 +33,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       console.warn('[Login] Error en autenticación:', err?.message || err);
       setError(err?.message || 'No se pudo iniciar sesión. Intenta nuevamente.');
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   };
@@ -99,6 +105,12 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             {loading ? 'Ingresando...' : 'Ingresar'}
             <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
           </button>
+
+          <div className="text-center text-sm">
+            <a href="/forgot-password" className="text-emerald-600 hover:text-emerald-700 font-medium">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
         </form>
 
         <div className="mt-8 text-center text-xs text-slate-400">

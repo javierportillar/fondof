@@ -393,7 +393,7 @@ export const MOCK_USERS: UserProfile[] = [
     cedula: '1234567890',
     name: 'Administrador Principal',
     email: 'admin@fondof.com',
-    phoneNumber: '3017779454',
+    phoneNumber: '3105830555',
     createdAt: '2023-01-01',
     role: Role.ADMIN,
     creditLimit: 0,

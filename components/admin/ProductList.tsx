@@ -1,17 +1,46 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../../types';
+import { supabase } from '../../lib/supabase';
 import { Search, Edit2, Save, X, ShoppingBag, Plus, Star } from 'lucide-react';
 
-interface ProductListProps {
-  products: Product[];
-  onUpdateProducts: (products: Product[]) => void;
-}
-
-export default function ProductList({ products, onUpdateProducts }: ProductListProps) {
+export default function ProductList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Product>>({});
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        const mapped = (data || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category,
+          price: Number(p.price),
+          image: p.image,
+          stock: p.stock,
+          rating: Number(p.rating ?? 0),
+          description: p.description,
+          isGolden: p.is_golden
+        })) as Product[];
+        setProducts(mapped);
+      } catch (e: any) {
+        setError(e.message || 'No se pudieron cargar los productos');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -23,14 +52,40 @@ export default function ProductList({ products, onUpdateProducts }: ProductListP
     setEditForm({ ...product });
   };
 
-  const handleSaveProduct = () => {
+  const handleSaveProduct = async () => {
     if (!editingProduct) return;
-    
-    const updated = products.map(p => 
-      p.id === editingProduct ? { ...p, ...editForm } as Product : p
-    );
-    onUpdateProducts(updated);
-    
+    try {
+      // Solo enviar campos permitidos
+      const payload: any = {};
+      if (editForm.name !== undefined) payload.name = editForm.name;
+      if (editForm.category !== undefined) payload.category = editForm.category;
+      if (editForm.price !== undefined) payload.price = editForm.price;
+      if (editForm.image !== undefined) payload.image = editForm.image;
+      if (editForm.stock !== undefined) payload.stock = editForm.stock;
+      if (editForm.rating !== undefined) payload.rating = editForm.rating;
+      if (editForm.description !== undefined) payload.description = editForm.description;
+      if (editForm.isGolden !== undefined) payload.is_golden = editForm.isGolden;
+
+      // Evitar envío vacío
+      if (Object.keys(payload).length === 0) {
+        setEditingProduct(null);
+        setEditForm({});
+        return;
+      }
+
+      const { error } = await supabase
+        .from('products')
+        .update(payload)
+        .eq('id', editingProduct);
+      if (error) throw error;
+
+      setProducts(prev => prev.map(p => 
+        p.id === editingProduct ? { ...p, ...payload, isGolden: payload.is_golden ?? p.isGolden } as Product : p
+      ));
+    } catch (e: any) {
+      setError(e.message || 'No se pudo actualizar el producto');
+    }
+
     setEditingProduct(null);
     setEditForm({});
   };
@@ -68,6 +123,13 @@ export default function ProductList({ products, onUpdateProducts }: ProductListP
                 </Link>
            </div>
        </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
+      )}
+      {loading && (
+        <div className="p-4 text-slate-500 text-sm">Cargando productos...</div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProducts.map(product => (

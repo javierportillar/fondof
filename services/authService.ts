@@ -1,50 +1,37 @@
 import { supabase } from '../lib/supabase'
-import { DatabaseUser, UserProfile, Role, UserRole } from '../types'
+import { DatabaseUser, UserProfile, Role } from '../types'
+
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
 
 export const AuthService = {
   /**
-   * Sign up a new user with email and password
+   * Sign up a new user with email and password (sin Supabase Auth)
    */
-  async signUp(email: string, password: string, userData: Omit<DatabaseUser, 'id' | 'created_at'>) {
+  async signUp(email: string, password: string, userData: Omit<DatabaseUser, 'id' | 'created_at' | 'password_hash'>) {
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: userData.name,
-            cedula: userData.cedula,
-            phone_number: userData.phone_number,
-            role: userData.role
-          }
-        }
-      })
+      const password_hash = await hashPassword(password)
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{
+          cedula: userData.cedula,
+          name: userData.name,
+          email: userData.email,
+          phone_number: userData.phone_number,
+          role: userData.role,
+          credit_limit: userData.credit_limit,
+          password_hash
+        }])
+        .select()
+        .single()
 
-      if (authError) throw authError
-
-      if (authData.user) {
-        // Create user profile in users table
-        const { data: profileData, error: profileError } = await supabase
-          .from('users')
-          .insert([{
-            id: authData.user.id,
-            cedula: userData.cedula,
-            name: userData.name,
-            email: userData.email,
-            phone_number: userData.phone_number,
-            role: userData.role,
-            credit_limit: userData.credit_limit
-          }])
-          .select()
-          .single()
-
-        if (profileError) throw profileError
-
-        return { user: authData.user, profile: profileData }
-      }
-
-      throw new Error('User creation failed')
+      if (error) throw error
+      return { profile: data }
     } catch (error) {
       console.error('Error signing up:', error)
       throw error
@@ -52,18 +39,22 @@ export const AuthService = {
   },
 
   /**
-   * Sign in with email and password
+   * Sign in with email and password (sin Supabase Auth)
    */
   async signIn(email: string, password: string) {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      })
+      const password_hash = await hashPassword(password)
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password_hash', password_hash)
+        .single()
 
       if (error) throw error
+      if (!data) throw new Error('Usuario o contraseña inválidos')
 
-      return data
+      return { user: { id: data.id, email: data.email, user_metadata: data } }
     } catch (error) {
       console.error('Error signing in:', error)
       throw error
@@ -71,30 +62,67 @@ export const AuthService = {
   },
 
   /**
-   * Sign out current user
+   * Sign out current user (local)
    */
   async signOut() {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-    } catch (error) {
-      console.error('Error signing out:', error)
-      throw error
-    }
+    return
   },
 
   /**
-   * Get current user
+   * Request password reset: generates token and returns it (email sending not handled here)
    */
-  async getCurrentUser() {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser()
-      if (error) throw error
-      return user
-    } catch (error) {
-      console.error('Error getting current user:', error)
-      throw error
+  async requestPasswordReset(email: string, cedula?: string) {
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id,email,cedula')
+      .eq('email', email)
+      .single()
+    if (userError || !user) throw new Error('Correo no encontrado')
+
+    // Paso 1: solo email, pedimos cédula
+    if (!cedula) {
+      return { requiresCedula: true }
     }
+
+    // Paso 2: validar cédula
+    if (user.cedula !== cedula) throw new Error('La cédula no coincide con el correo')
+
+    const token = crypto.randomUUID()
+    const expires_at = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+    const { error: insertError } = await supabase
+      .from('password_resets')
+      .insert([{ token, user_id: user.id, expires_at }])
+    if (insertError) throw insertError
+
+    return { token }
+  },
+
+  /**
+   * Reset password using token
+   */
+  async resetPassword(token: string, newPassword: string) {
+    const { data: resetRow, error: resetError } = await supabase
+      .from('password_resets')
+      .select('*')
+      .eq('token', token)
+      .eq('used', false)
+      .gte('expires_at', new Date().toISOString())
+      .single()
+    if (resetError || !resetRow) throw new Error('Token inválido o expirado')
+
+    const password_hash = await hashPassword(newPassword)
+    const { error: updateUserError } = await supabase
+      .from('users')
+      .update({ password_hash })
+      .eq('id', resetRow.user_id)
+    if (updateUserError) throw updateUserError
+
+    await supabase
+      .from('password_resets')
+      .update({ used: true })
+      .eq('token', token)
+
+    return true
   },
 
   /**
@@ -109,11 +137,30 @@ export const AuthService = {
       console.log('[AuthService] getUserProfile userId:', userId);
 
       // Get user data
-      const { data: userData, error: userError } = await supabase
+      let { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single()
+
+      if (userError && userError.code === 'PGRST116') {
+        console.warn('[AuthService] Perfil no encontrado, intentando crearlo desde metadata');
+        const { data: userSession } = await supabase.auth.getUser();
+        const meta = userSession?.user?.user_metadata || {};
+        const { error: insertError } = await supabase.from('users').insert([{
+          id: userId,
+          cedula: meta.cedula || userSession?.user?.email || userId,
+          name: meta.name || userSession?.user?.email || 'Usuario',
+          email: userSession?.user?.email || '',
+          phone_number: meta.phone_number || '',
+          role: meta.role || 'USER',
+          credit_limit: meta.credit_limit || 0
+        }]);
+        if (insertError) throw insertError;
+        const reselect = await supabase.from('users').select('*').eq('id', userId).single();
+        userData = reselect.data;
+        userError = reselect.error;
+      }
 
       if (userError) throw userError
 
@@ -211,6 +258,7 @@ export const AuthService = {
    * Listen to auth changes
    */
   onAuthChange(callback: (user: any) => void) {
-    return supabase.auth.onAuthStateChange(callback)
+    // Auth local: no events, return dummy unsubscribe
+    return { data: { subscription: { unsubscribe: () => {} } } }
   }
 }

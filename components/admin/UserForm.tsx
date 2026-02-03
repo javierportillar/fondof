@@ -1,61 +1,65 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { UserProfile, Role } from '../../types';
-import { ArrowLeft, Save, UserPlus, AlertCircle } from 'lucide-react';
+import { Role } from '../../types';
+import { AuthService } from '../../services';
+import { supabase } from '../../lib/supabase';
+import { ArrowLeft, UserPlus, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
-interface UserFormProps {
-  users: UserProfile[];
-  onAddUser: (user: UserProfile) => void;
-}
-
-export default function UserForm({ users, onAddUser }: UserFormProps) {
+export default function UserForm() {
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<Role>(Role.USER);
   
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     
     const formData = new FormData(e.currentTarget);
     const name = (formData.get('name') as string).trim();
     const cedula = (formData.get('cedula') as string).trim();
     const email = (formData.get('email') as string).trim();
     const phone = (formData.get('phone') as string).trim();
+    const password = (formData.get('password') as string).trim();
     const initialSavings = Number(formData.get('initialSavings'));
     const creditLimit = Number(formData.get('creditLimit'));
 
-    // Validation
-    if (users.some(u => u.cedula === cedula)) {
-        setError('Ya existe un usuario con esta cédula.');
-        return;
-    }
+    try {
+      console.log('[UserForm] Creating user (tabla users)', email);
 
-    const newUser: UserProfile = {
-        id: `user-${Date.now()}`,
+      const signUpResult = await AuthService.signUp(email, password, {
         cedula,
         name,
         email,
-        phoneNumber: phone,
-        createdAt: new Date().toISOString().split('T')[0],
-        role: Role.USER,
-        creditLimit: creditLimit,
-        savings: {
-            balance: initialSavings,
-            monthlyContribution: 0, // Default, can be edited later
-            interestEarned: 0,
-            lastContributionDate: '',
-            history: initialSavings > 0 ? [{
-                id: `txn-init-${Date.now()}`,
-                date: new Date().toISOString().split('T')[0],
-                amount: initialSavings,
-                type: 'DEPOSIT'
-            }] : []
-        },
-        loans: []
-    };
+        phone_number: phone,
+        role,
+        credit_limit: creditLimit
+      });
 
-    onAddUser(newUser);
-    navigate('/admin');
+      const newUserId = signUpResult.profile?.id;
+      if (!newUserId) throw new Error('No se obtuvo el ID del usuario creado.');
+
+      if (initialSavings > 0) {
+        await supabase.from('savings_accounts').upsert([{
+          user_id: newUserId,
+          balance: initialSavings
+        }]);
+        await supabase.from('savings_history').insert([{
+          user_id: newUserId,
+          amount: initialSavings,
+          type: 'DEPOSIT'
+        }]);
+      }
+
+      console.log('[UserForm] User created successfully');
+      navigate('/admin');
+    } catch (err: any) {
+      setError(err?.message || 'No se pudo crear el usuario.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -100,6 +104,43 @@ export default function UserForm({ users, onAddUser }: UserFormProps) {
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Correo Electrónico</label>
                     <input name="email" type="email" required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="correo@ejemplo.com" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Rol</label>
+                        <select
+                          value={role}
+                          onChange={(e) => setRole(e.target.value as Role)}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                        >
+                          <option value={Role.USER}>Usuario</option>
+                          <option value={Role.ADMIN}>Administrador</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Contraseña</label>
+                        <div className="relative">
+                          <input 
+                            name="password" 
+                            type={showPassword ? 'text' : 'password'} 
+                            required 
+                            minLength={6}
+                            className="w-full px-4 py-3 pr-12 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" 
+                            placeholder="Mínimo 6 caracteres" 
+                            autoComplete="new-password"
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPassword(p => !p)}
+                            className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-slate-700"
+                            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                          >
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="pt-4 border-t border-slate-100">

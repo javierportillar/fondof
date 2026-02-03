@@ -25,6 +25,8 @@ import SavingsManager from './components/admin/SavingsManager';
 import SavingsForm from './components/admin/SavingsForm';
 import UserForm from './components/admin/UserForm';
 import ProductForm from './components/admin/ProductForm';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 
 function AppRoutes() {
   const { profile, loading, login, logout } = useAuth();
@@ -33,42 +35,41 @@ function AppRoutes() {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  if (!profile) {
-    return <LoginScreen onLogin={login} />;
-  }
-
   return (
     <Routes>
-      {/* Redirect Root */}
-      <Route path="/" element={<Navigate to={profile.role === Role.ADMIN ? '/admin' : '/dashboard'} replace />} />
-      
-      {/* Admin Routes */}
-      {profile.role === Role.ADMIN && (
-        <Route path="/admin" element={<AdminLayout user={profile} onLogout={logout} />}>
-          <Route index element={<UserList />} />
-          <Route path="users/new" element={<UserForm />} />
-          <Route path="products" element={<ProductList />} />
-          <Route path="products/new" element={<ProductForm />} />
-          <Route path="users/:userId/loans" element={<LoanManager />} />
-          <Route path="users/:userId/savings" element={<SavingsManager />} />
-          <Route path="users/:userId/savings/new" element={<SavingsForm />} />
-          <Route path="users/:userId/savings/edit/:txnId" element={<SavingsForm />} />
-        </Route>
-      )}
+      {/* Public store as home */}
+      <Route path="/" element={<StoreSection userId={profile?.id} profile={profile || undefined} onLogout={logout} />} />
+      <Route path="/store" element={<StoreSection userId={profile?.id} profile={profile || undefined} onLogout={logout} />} />
 
+      {/* Auth */}
+      <Route path="/login" element={profile ? <Navigate to={profile.role === Role.ADMIN ? '/admin' : '/dashboard'} replace /> : <LoginScreen onLogin={login} />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+
+      {/* Redirect Root */}
+      {/* Admin Routes */}
+      <Route path="/admin" element={profile && profile.role === Role.ADMIN ? <AdminLayout user={profile} onLogout={logout} /> : <Navigate to="/" replace />}>
+        <Route index element={<UserList />} />
+        <Route path="users/new" element={<UserForm />} />
+        <Route path="products" element={<ProductList />} />
+        <Route path="products/new" element={<ProductForm />} />
+        <Route path="users/:userId/loans" element={<LoanManager />} />
+        <Route path="users/:userId/savings" element={<SavingsManager />} />
+        <Route path="users/:userId/savings/new" element={<SavingsForm />} />
+        <Route path="users/:userId/savings/edit/:txnId" element={<SavingsForm />} />
+      </Route>
+
+      {/* Admin Routes */}
       {/* User Routes */}
-      {profile.role === Role.USER && (
-        <Route element={<UserLayout user={profile} onLogout={logout} />}>
-          <Route path="/dashboard" element={<Dashboard user={profile} />} />
-          <Route path="/loans" element={<LoanSection user={profile} />} />
-          <Route path="/savings" element={<SavingsSection user={profile} />} />
-          <Route path="/store" element={<StoreSection />} />
-          <Route path="/advisor" element={<Advisor user={profile} />} />
-        </Route>
-      )}
+      <Route element={profile && profile.role === Role.USER ? <UserLayout user={profile} onLogout={logout} /> : <Navigate to="/" replace />}>
+        <Route path="/dashboard" element={<Dashboard user={profile || undefined as any} />} />
+        <Route path="/loans" element={<LoanSection user={profile || undefined as any} />} />
+        <Route path="/savings" element={<SavingsSection user={profile || undefined as any} />} />
+        <Route path="/advisor" element={<Advisor user={profile || undefined as any} />} />
+      </Route>
 
       {/* Catch All / Fallback */}
-      <Route path="*" element={<Navigate to={profile.role === Role.ADMIN ? '/admin' : '/dashboard'} replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

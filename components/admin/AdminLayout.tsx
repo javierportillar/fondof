@@ -14,7 +14,7 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
 
   const handleLogout = () => {
     onLogout();
-    navigate('/login');
+    navigate('/');
   };
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');

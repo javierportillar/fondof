@@ -100,6 +100,7 @@ export interface DatabaseUser {
   phone_number: string;
   role: UserRole;
   credit_limit: number;
+  password_hash?: string;
   created_at: string;
 }
 

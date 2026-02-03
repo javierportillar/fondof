@@ -391,41 +391,43 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-100">
           <h3 className="text-lg font-bold text-slate-800">Historial de Ahorro</h3>
-          <p className="text-slate-500 text-sm">Resumen anual de tus movimientos financieros.</p>
+          <p className="text-slate-500 text-sm">Detalle por año, mes y día.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-semibold">
               <tr>
                 <th className="px-6 py-4 text-left">Año</th>
-                <th className="px-6 py-4 text-right text-emerald-600">Ahorro (Depósitos + Interés)</th>
-                <th className="px-6 py-4 text-right text-red-500">Retiros</th>
-                <th className="px-6 py-4 text-right">Balance Final</th>
+                <th className="px-6 py-4 text-left">Mes</th>
+                <th className="px-6 py-4 text-left">Día</th>
+                <th className="px-6 py-4 text-left">Tipo</th>
+                <th className="px-6 py-4 text-right">Monto</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {yearlySummary.map((item) => (
-                <tr key={item.year} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-slate-800">{item.year}</td>
-                  <td className="px-6 py-4 text-right text-emerald-600 font-medium flex justify-end items-center gap-1">
-                    <ArrowUpRight size={14} />
-                    ${item.savings.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-right text-red-500 font-medium">
-                    {item.withdrawals > 0 ? (
-                      <span className="flex justify-end items-center gap-1">
-                        <ArrowDownLeft size={14} />
-                        -${item.withdrawals.toLocaleString()}
-                      </span>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-slate-800">
-                    ${item.balance.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {user.savings.history
+                .slice()
+                .sort((a, b) => (a.date < b.date ? 1 : -1))
+                .map((h) => {
+                  const [year, month, day] = h.date.split('-');
+                  return (
+                    <tr key={h.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-medium text-slate-800">{year}</td>
+                      <td className="px-6 py-4 text-slate-700 capitalize">
+                        {new Date(Number(year), Number(month) - 1).toLocaleString('es-ES', { month: 'long' })}
+                      </td>
+                      <td className="px-6 py-4 text-slate-700">{day}</td>
+                      <td className="px-6 py-4 text-slate-500 capitalize">
+                        {h.type === 'DEPOSIT' ? 'Depósito' : h.type === 'WITHDRAWAL' ? 'Retiro' : 'Interés'}
+                      </td>
+                      <td className={`px-6 py-4 text-right font-semibold ${
+                        h.type === 'WITHDRAWAL' ? 'text-red-500' : 'text-emerald-600'
+                      }`}>
+                        {h.type === 'WITHDRAWAL' ? '-' : '+'}${h.amount.toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>

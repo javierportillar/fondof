@@ -24,7 +24,7 @@ export default function UserLayout({ user, onLogout }: UserLayoutProps) {
 
   const handleLogout = () => {
     onLogout();
-    navigate('/login');
+    navigate('/');
   };
 
   const NavItem = ({ path, icon: Icon, label }: { path: string, icon: any, label: string }) => {

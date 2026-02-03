@@ -1,59 +1,175 @@
-import React, { useState } from 'react'; // Added useState
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom'; // Added useLocation
-import { UserProfile } from '../../types';
-import { ArrowLeft, Save, X, ArrowUpCircle, ArrowDownCircle } from 'lucide-react'; // Added icons
-import { SavingsService } from '../../services/savingsService';
+import React, { useEffect, useState } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { UserProfile, Role } from '../../types';
+import { ArrowLeft, Save, X, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
-interface SavingsFormProps {
-  users: UserProfile[];
-  onUpdateUsers: (users: UserProfile[]) => void;
-}
-
-export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) {
+export default function SavingsForm() {
   const { userId, txnId } = useParams<{ userId: string; txnId?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const user = users.find(u => u.id === userId);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [transactionType, setTransactionType] = useState<'DEPOSIT' | 'WITHDRAWAL'>('DEPOSIT');
+  const [saving, setSaving] = useState(false);
 
-  // Determine initial type from location state or existing transaction
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (!userId) throw new Error('Falta userId');
+        const { data: userData, error: userErr } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        if (userErr) throw userErr;
+
+        const { data: savingsAcc } = await supabase
+          .from('savings_accounts')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        const { data: historyData } = await supabase
+          .from('savings_history')
+          .select('*')
+          .eq('user_id', userId)
+          .order('date', { ascending: false });
+
+        const profile: UserProfile = {
+          id: userData.id,
+          cedula: userData.cedula,
+          name: userData.name,
+          email: userData.email,
+          phoneNumber: userData.phone_number,
+          createdAt: userData.created_at,
+          role: userData.role === 'ADMIN' ? Role.ADMIN : Role.USER,
+          creditLimit: userData.credit_limit ?? 0,
+          savings: savingsAcc ? {
+            balance: savingsAcc.balance ?? 0,
+            monthlyContribution: savingsAcc.monthly_contribution ?? 0,
+            lastContributionDate: savingsAcc.last_contribution_date || '',
+            interestEarned: savingsAcc.interest_earned ?? 0,
+            history: (historyData || []).map(h => ({
+              id: h.id,
+              date: h.date,
+              amount: h.amount,
+              type: h.type
+            }))
+          } : {
+            balance: 0,
+            monthlyContribution: 0,
+            lastContributionDate: '',
+            interestEarned: 0,
+            history: (historyData || []).map(h => ({
+              id: h.id,
+              date: h.date,
+              amount: h.amount,
+              type: h.type
+            }))
+          },
+          loans: []
+        };
+        setUser(profile);
+      } catch (e: any) {
+        setError(e.message || 'No se pudo cargar el usuario');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [userId]);
+
   const locationState = location.state as { defaultType?: 'DEPOSIT' | 'WITHDRAWAL' } | null;
   const editingTransaction = txnId ? user?.savings.history.find(h => h.id === txnId) : null;
-  const initialType = editingTransaction?.type === 'WITHDRAWAL' ? 'WITHDRAWAL' : (locationState?.defaultType || 'DEPOSIT');
-
-  const [transactionType, setTransactionType] = useState<'DEPOSIT' | 'WITHDRAWAL'>(initialType);
   const isEditing = !!txnId;
 
+  useEffect(() => {
+    if (editingTransaction) {
+      setTransactionType(editingTransaction.type === 'WITHDRAWAL' ? 'WITHDRAWAL' : 'DEPOSIT');
+    } else if (locationState?.defaultType) {
+      setTransactionType(locationState.defaultType);
+    }
+  }, [editingTransaction, locationState]);
+
+  if (loading) return <div>Cargando...</div>;
+  if (error) return <div>{error}</div>;
   if (!user) return <div>Usuario no encontrado</div>;
   if (isEditing && !editingTransaction) return <div>Transacción no encontrada</div>;
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const savingsAccExists = (u: UserProfile) => {
+    return u.savings !== undefined;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       const form = e.currentTarget;
       const amount = Number((form.elements.namedItem('amount') as HTMLInputElement).value);
       const date = (form.elements.namedItem('date') as HTMLInputElement).value;
 
       if (amount > 0 && date) {
-        let updatedUser;
-        
-        if (isEditing && editingTransaction) {
-            // Note: Currently updateContribution assumes deposits or generic editing. 
-            // If type change is needed, it's more complex. Ideally forbid changing type on edit for simplicity.
-            updatedUser = SavingsService.updateContribution(user, editingTransaction.id, amount, date);
-        } else {
-            if (transactionType === 'DEPOSIT') {
-                updatedUser = SavingsService.addContribution(user, amount, date);
-            } else {
-                 updatedUser = SavingsService.addWithdrawal(user, amount, date);
-            }
-        }
+        try {
+          setSaving(true);
 
-        // Update Global State
-        const updatedUsers = users.map(u => 
-            u.id === updatedUser.id ? updatedUser : u
-        );
-        onUpdateUsers(updatedUsers);
-        
-        navigate(`/admin/users/${userId}/savings`);
+          const current = user.savings || {
+            balance: 0,
+            monthlyContribution: 0,
+            lastContributionDate: '',
+            interestEarned: 0,
+            history: []
+          };
+
+          let newBalance = current.balance;
+
+          if (isEditing && editingTransaction) {
+            // ajusta balance por diferencia
+            const diff = amount - editingTransaction.amount;
+            if (editingTransaction.type === 'DEPOSIT') {
+              newBalance = current.balance + diff;
+            } else {
+              newBalance = current.balance - diff;
+              if (newBalance < 0) throw new Error('Saldo insuficiente');
+            }
+          } else {
+            if (transactionType === 'DEPOSIT') {
+              newBalance = current.balance + amount;
+            } else {
+              newBalance = current.balance - amount;
+              if (newBalance < 0) throw new Error('Saldo insuficiente');
+            }
+          }
+
+          // upsert savings account
+          await supabase.from('savings_accounts').upsert([{
+            user_id: user.id,
+            balance: newBalance,
+            monthly_contribution: current.monthlyContribution,
+            last_contribution_date: date,
+            interest_earned: current.interestEarned
+          }]);
+
+          if (isEditing && editingTransaction) {
+            await supabase.from('savings_history').update({
+              amount,
+              date,
+              type: transactionType
+            }).eq('id', editingTransaction.id);
+          } else {
+            await supabase.from('savings_history').insert([{
+              user_id: user.id,
+              amount,
+              date,
+              type: transactionType
+            }]);
+          }
+
+          navigate(`/admin/users/${userId}/savings`);
+        } catch (err: any) {
+          setError(err?.message || 'No se pudo registrar la transacción');
+        } finally {
+          setSaving(false);
+        }
       }
   };
 
@@ -161,6 +277,7 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
                      </Link>
                      <button 
                         type="submit" 
+                        disabled={saving}
                         className={`flex-[2] py-4 text-white font-bold rounded-xl transition-colors shadow-lg flex justify-center items-center ${
                             isDeposit
                             ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
@@ -168,8 +285,8 @@ export default function SavingsForm({ users, onUpdateUsers }: SavingsFormProps) 
                         }`}
                      >
                         <Save size={20} className="mr-2" />
-                        {isEditing ? 'Guardar Cambios' : (isDeposit ? 'Registrar Ahorro' : 'Confirmar Retiro')}
-                     </button>
+                        {saving ? 'Guardando...' : isEditing ? 'Guardar Cambios' : (isDeposit ? 'Registrar Ahorro' : 'Confirmar Retiro')}
+                    </button>
                 </div>
             </form>
          </div>

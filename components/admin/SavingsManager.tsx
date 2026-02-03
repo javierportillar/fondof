@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { UserProfile } from '../../types';
+import { UserProfile, Role } from '../../types';
 import { ArrowLeft, PiggyBank, Calendar, Edit2, Plus } from 'lucide-react';
 import { 
   BarChart, 
@@ -12,16 +12,86 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 import { SavingsService } from '../../services/savingsService';
+import { supabase } from '../../lib/supabase';
 
-interface SavingsManagerProps {
-  users: UserProfile[];
-}
-
-export default function SavingsManager({ users }: SavingsManagerProps) {
+export default function SavingsManager() {
   const { userId } = useParams<{ userId: string }>();
-  const user = users.find(u => u.id === userId);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        if (!userId) throw new Error('Falta userId');
+        const { data: userData, error: userErr } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        if (userErr) throw userErr;
+
+        const { data: savingsAcc } = await supabase
+          .from('savings_accounts')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        const { data: historyData } = await supabase
+          .from('savings_history')
+          .select('*')
+          .eq('user_id', userId)
+          .order('date', { ascending: false });
+
+        const profile: UserProfile = {
+          id: userData.id,
+          cedula: userData.cedula,
+          name: userData.name,
+          email: userData.email,
+          phoneNumber: userData.phone_number,
+          createdAt: userData.created_at,
+          role: userData.role === 'ADMIN' ? Role.ADMIN : Role.USER,
+          creditLimit: userData.credit_limit ?? 0,
+          savings: savingsAcc ? {
+            balance: savingsAcc.balance ?? 0,
+            monthlyContribution: savingsAcc.monthly_contribution ?? 0,
+            lastContributionDate: savingsAcc.last_contribution_date || '',
+            interestEarned: savingsAcc.interest_earned ?? 0,
+            history: (historyData || []).map(h => ({
+              id: h.id,
+              date: h.date,
+              amount: h.amount,
+              type: h.type
+            }))
+          } : {
+            balance: 0,
+            monthlyContribution: 0,
+            lastContributionDate: '',
+            interestEarned: 0,
+            history: (historyData || []).map(h => ({
+              id: h.id,
+              date: h.date,
+              amount: h.amount,
+              type: h.type
+            }))
+          },
+          loans: [],
+          savingsGoal: undefined
+        };
+        setUser(profile);
+      } catch (e: any) {
+        setError(e.message || 'No se pudo cargar el usuario.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUser();
+  }, [userId]);
+
+  if (loading) return <div>Cargando...</div>;
+  if (error) return <div>{error}</div>;
   if (!user) return <div>Usuario no encontrado</div>;
+
 
   const chartData = SavingsService.getMonthlySavingsData(user.savings.history);
 
