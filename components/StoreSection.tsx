@@ -72,7 +72,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
   const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.qty), 0);
   const cartItemCount = cart.reduce((acc, item) => acc + item.qty, 0);
 
-  const sendOrderToWhatsApp = () => {
+  const sendOrderToWhatsApp = async () => {
     if (cart.length === 0) return;
 
     let message = `Hola *Fondo Fortuna*, quisiera realizar el siguiente pedido de la Tienda Solidaria:%0A%0A`;
@@ -86,7 +86,32 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
     message += `%0A%0AMuchas gracias.`;
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-    window.open(url, '_blank');
+    try {
+      const itemsPayload = cart.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        quantity: item.qty,
+        price: item.product.price
+      }));
+
+      const { error } = await supabase
+        .from('orders')
+        .insert([{
+          user_id: userId ?? null,
+          customer_name: profile?.name || 'Cliente WhatsApp',
+          customer_phone: profile?.phoneNumber || null,
+          channel: 'whatsapp',
+          status: 'pending',
+          items: itemsPayload
+        }]);
+      if (error) throw error;
+
+      window.open(url, '_blank');
+      setCart([]);
+    } catch (err: any) {
+      console.error('Error creando pedido', err);
+      alert(err?.message || 'No se pudo crear el pedido.');
+    }
   };
 
   const registerPurchase = async () => {
@@ -301,7 +326,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
         })}
       </div>
       
-      {filteredProducts.length === 0 && (
+      {!loading && filteredProducts.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
             <ShoppingBag size={48} className="mx-auto text-slate-300 mb-4" />
             <p className="text-slate-500 text-lg font-medium">No encontramos productos</p>

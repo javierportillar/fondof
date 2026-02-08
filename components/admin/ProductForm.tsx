@@ -10,6 +10,7 @@ interface ProductFormProps {
 export default function ProductForm({ onAddProduct }: ProductFormProps) {
   const navigate = useNavigate();
   const [useUrl, setUseUrl] = useState(true);
+  const [isNewCategory, setIsNewCategory] = useState(false);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -59,13 +60,33 @@ export default function ProductForm({ onAddProduct }: ProductFormProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-2">Categoría</label>
-                        <select name="category" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
-                            <option value="despensa">Despensa</option>
-                            <option value="aseo hogar">Aseo Hogar</option>
-                            <option value="cuidado personal">Cuidado Personal</option>
-                            <option value="mecato">Mecato</option>
-                        </select>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="block text-sm font-bold text-slate-700">Categoría</label>
+                            <button 
+                                type="button" 
+                                onClick={() => setIsNewCategory(!isNewCategory)}
+                                className="text-xs text-emerald-600 font-bold hover:text-emerald-700 hover:underline"
+                            >
+                                {isNewCategory ? 'Seleccionar existente' : '+ Nueva categoría'}
+                            </button>
+                        </div>
+                        {isNewCategory ? (
+                            <input 
+                                name="category" 
+                                type="text" 
+                                required 
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none" 
+                                placeholder="Nombre de la nueva categoría" 
+                                autoFocus
+                            />
+                        ) : (
+                            <select name="category" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                                <option value="despensa">Despensa</option>
+                                <option value="aseo hogar">Aseo Hogar</option>
+                                <option value="cuidado personal">Cuidado Personal</option>
+                                <option value="mecato">Mecato</option>
+                            </select>
+                        )}
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">Precio ($)</label>

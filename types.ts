@@ -87,6 +87,42 @@ export interface Product {
   isGolden?: boolean;
 }
 
+export type OrderChannel = 'whatsapp' | 'store';
+export type OrderStatus = 'pending' | 'confirmed' | 'cancelled';
+
+export interface OrderItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+export interface DatabaseOrder {
+  id: string;
+  user_id?: string | null;
+  customer_name: string;
+  customer_phone?: string;
+  channel: OrderChannel;
+  status: OrderStatus;
+  items: OrderItem[];
+  notes?: string;
+  created_at: string;
+  confirmed_at?: string;
+}
+
+export interface Order {
+  id: string;
+  userId?: string | null;
+  customerName: string;
+  customerPhone?: string;
+  channel: OrderChannel;
+  status: OrderStatus;
+  items: OrderItem[];
+  notes?: string;
+  createdAt: string;
+  confirmedAt?: string;
+}
+
 export enum Role {
   ADMIN = 'ADMIN',
   USER = 'USER'

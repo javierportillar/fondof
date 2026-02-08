@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Product } from '../../types';
 import { supabase } from '../../lib/supabase';
-import { Search, Edit2, Save, X, ShoppingBag, Plus, Star } from 'lucide-react';
+import { Search, Edit2, Save, X, ShoppingBag, Plus, Star, ClipboardList } from 'lucide-react';
 
 export default function ProductList() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,6 +11,8 @@ export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'inventory'>('grid');
+  const [stockDrafts, setStockDrafts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -50,6 +52,27 @@ export default function ProductList() {
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product.id);
     setEditForm({ ...product });
+  };
+
+  const handleStockInput = (id: string, value: number) => {
+    setStockDrafts(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleSaveStock = async (product: Product) => {
+    const newStock = stockDrafts[product.id] ?? product.stock;
+    if (newStock === product.stock) return;
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ stock: newStock })
+        .eq('id', product.id);
+      if (error) throw error;
+
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, stock: newStock } : p));
+    } catch (e: any) {
+      setError(e.message || 'No se pudo actualizar el stock');
+    }
   };
 
   const handleSaveProduct = async () => {
@@ -124,6 +147,21 @@ export default function ProductList() {
            </div>
        </div>
 
+      <div className="flex gap-2 mt-2">
+        <button
+          onClick={() => setViewMode('grid')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${viewMode === 'grid' ? 'bg-slate-900 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}
+        >
+          <ShoppingBag size={16} /> Vista catálogo
+        </button>
+        <button
+          onClick={() => setViewMode('inventory')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${viewMode === 'inventory' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'}`}
+        >
+          <ClipboardList size={16} /> Inventario rápido
+        </button>
+      </div>
+
       {error && (
         <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
       )}
@@ -131,10 +169,52 @@ export default function ProductList() {
         <div className="p-4 text-slate-500 text-sm">Cargando productos...</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map(product => (
-          <div key={product.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full hover:shadow-md transition-all">
-            {editingProduct === product.id ? (
+      {viewMode === 'inventory' ? (
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3 text-left">Producto</th>
+                  <th className="px-4 py-3 text-left">Categoría</th>
+                  <th className="px-4 py-3 text-left">Stock</th>
+                  <th className="px-4 py-3 text-left">Precio</th>
+                  <th className="px-4 py-3 text-left">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {filteredProducts.map(product => (
+                  <tr key={product.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-semibold text-slate-800">{product.name}</td>
+                    <td className="px-4 py-3 capitalize text-slate-500">{product.category}</td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        defaultValue={product.stock}
+                        onChange={(e) => handleStockInput(product.id, Number(e.target.value))}
+                        className="w-24 border border-slate-200 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-700">${product.price.toLocaleString()}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleSaveStock(product)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
+                      >
+                        <Save size={14} /> Guardar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProducts.map(product => (
+            <div key={product.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-full hover:shadow-md transition-all">
+              {editingProduct === product.id ? (
                <div className="p-4 flex-1 flex flex-col gap-3 overflow-y-auto">
                 <div className="flex justify-between items-center mb-2">
                      <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Editando</span>
@@ -200,14 +280,25 @@ export default function ProductList() {
                     </div>
                 </div>
 
-                 {/* Image */}
-                 <div>
+                {/* Image */}
+                 <div className="mb-2">
                     <label className="text-xs text-slate-500 font-bold">URL Imagen</label>
                     <input 
                         className="w-full text-xs border p-1 rounded focus:ring-1 focus:ring-emerald-500 outline-none" 
                         value={editForm.image || ''} 
                         placeholder="https://..."
                         onChange={e => setEditForm(prev => ({...prev, image: e.target.value}))}
+                    />
+                </div>
+
+                {/* Description */}
+                <div className="mb-2">
+                    <label className="text-xs text-slate-500 font-bold">Descripción / Detalles</label>
+                    <textarea 
+                        className="w-full text-xs border p-1 rounded focus:ring-1 focus:ring-emerald-500 outline-none min-h-[60px]" 
+                        value={editForm.description || ''} 
+                        placeholder="Detalles del producto..."
+                        onChange={e => setEditForm(prev => ({...prev, description: e.target.value}))}
                     />
                 </div>
 
@@ -271,6 +362,7 @@ export default function ProductList() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

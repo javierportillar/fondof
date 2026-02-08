@@ -1,0 +1,5 @@
+# Firebase Hosting deployment
+**/dist/
+**/.firebase/
+**/firebase-debug.log
+**/.firebaserc

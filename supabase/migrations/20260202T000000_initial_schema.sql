@@ -102,6 +102,20 @@ create table if not exists public.purchase_items (
   created_at     timestamptz not null default now()
 );
 
+-- Pedidos (WhatsApp u otros canales manuales)
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id) on delete set null,
+  customer_name text not null,
+  customer_phone text,
+  channel text not null default 'whatsapp' check (channel in ('whatsapp','store')),
+  status text not null default 'pending' check (status in ('pending','confirmed','cancelled')),
+  items jsonb not null,
+  notes text,
+  created_at timestamptz not null default now(),
+  confirmed_at timestamptz
+);
+
 -------------------------------------------------------------------------------
 -- Índices
 -------------------------------------------------------------------------------
@@ -118,6 +132,8 @@ create index if not exists idx_products_golden on public.products (is_golden);
 create index if not exists idx_purchases_user on public.purchases (user_id);
 create index if not exists idx_purchase_items_purchase on public.purchase_items (purchase_id);
 create index if not exists idx_purchase_items_product on public.purchase_items (product_id);
+create index if not exists idx_orders_status on public.orders (status);
+create index if not exists idx_orders_created_at on public.orders (created_at desc);
 
 -------------------------------------------------------------------------------
 -- Row Level Security
@@ -128,6 +144,7 @@ alter table public.savings_history enable row level security;
 alter table public.savings_goals enable row level security;
 alter table public.loans enable row level security;
 alter table public.products enable row level security;
+alter table public.orders enable row level security;
 
 -- Policies: usuarios estándar (USER) solo ven/modifican lo suyo; admin todo.
 
@@ -230,6 +247,23 @@ create policy purchase_items_select_all
 drop policy if exists purchase_items_modify_all on public.purchase_items;
 create policy purchase_items_modify_all
   on public.purchase_items for all
+  using (true)
+  with check (true);
+
+-- ORDERS (sin auth de Supabase, abierto para lectura/escritura desde el frontend)
+drop policy if exists orders_select on public.orders;
+create policy orders_select
+  on public.orders for select
+  using (true);
+
+drop policy if exists orders_insert on public.orders;
+create policy orders_insert
+  on public.orders for insert
+  with check (true);
+
+drop policy if exists orders_update on public.orders;
+create policy orders_update
+  on public.orders for update
   using (true)
   with check (true);
 

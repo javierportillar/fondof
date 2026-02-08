@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { UserProfile, SavingsGoal } from '../types';
 import { ArrowUpRight, Target, TrendingUp, ArrowDownLeft, Plus, Edit2, Save, X, Calendar } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { UsersService } from '../services';
 
 interface SavingsSectionProps {
   user: UserProfile;
@@ -10,10 +11,19 @@ interface SavingsSectionProps {
 
 export default function SavingsSection({ user, onUpdateUser }: SavingsSectionProps) {
   const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [savingGoal, setSavingGoal] = useState(false);
+  const [goalError, setGoalError] = useState<string | null>(null);
+  const [goal, setGoal] = useState<SavingsGoal | undefined>(user.savingsGoal);
   
   // Goal Form State
   const [goalName, setGoalName] = useState(user.savingsGoal?.name || '');
   const [goalAmount, setGoalAmount] = useState(user.savingsGoal?.targetAmount?.toString() || '');
+
+  useEffect(() => {
+    setGoal(user.savingsGoal);
+    setGoalName(user.savingsGoal?.name || '');
+    setGoalAmount(user.savingsGoal?.targetAmount?.toString() || '');
+  }, [user.savingsGoal?.name, user.savingsGoal?.targetAmount, user.savingsGoal?.createdAt]);
 
   // 1. Chart Data Processing (Aggregate by Month)
   const chartData = useMemo(() => {
@@ -104,10 +114,10 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
 
   // 3. Goal & Forecasting Logic
   const goalStats = useMemo(() => {
-    if (!user.savingsGoal) return null;
+    if (!goal) return null;
 
     const currentBalance = user.savings.balance;
-    const target = user.savingsGoal.targetAmount;
+    const target = goal.targetAmount;
     const progress = Math.min(100, Math.max(0, (currentBalance / target) * 100));
     
     // Calculate Average Monthly Savings based on history
@@ -132,22 +142,32 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
         estimatedDate,
         effectiveSavingsRate
     };
-  }, [user.savingsGoal, user.savings.balance, user.savings.history, user.savings.monthlyContribution]);
+  }, [goal, user.savings.balance, user.savings.history, user.savings.monthlyContribution]);
 
-  const handleSaveGoal = () => {
+  const handleSaveGoal = async () => {
     if (!goalName.trim() || !goalAmount || Number(goalAmount) <= 0) return;
 
-    if (onUpdateUser) {
-        const updatedUser = {
-            ...user,
-            savingsGoal: {
-                name: goalName,
-                targetAmount: Number(goalAmount),
-                createdAt: new Date().toISOString()
-            }
-        };
-        onUpdateUser(updatedUser);
-        setIsEditingGoal(false);
+    try {
+      setSavingGoal(true);
+      setGoalError(null);
+      const data = await UsersService.setSavingsGoal(user.id, {
+        name: goalName.trim(),
+        target_amount: Number(goalAmount)
+      });
+      const savedGoal: SavingsGoal = {
+        name: data.name,
+        targetAmount: data.target_amount,
+        createdAt: data.created_at
+      };
+      setGoal(savedGoal);
+      if (onUpdateUser) {
+        onUpdateUser({ ...user, savingsGoal: savedGoal });
+      }
+      setIsEditingGoal(false);
+    } catch (e: any) {
+      setGoalError(e?.message || 'No se pudo guardar la meta');
+    } finally {
+      setSavingGoal(false);
     }
   };
 
@@ -262,9 +282,9 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
                 </div>
 
                 {/* EDIT MODE / CREATE MODE */}
-                {(isEditingGoal || !user.savingsGoal) ? (
+                {(isEditingGoal || !goal) ? (
                     <div className="flex-1 flex flex-col justify-center animate-in fade-in zoom-in-95 duration-200">
-                         {!user.savingsGoal && !isEditingGoal ? (
+                         {!goal && !isEditingGoal ? (
                              // Empty State
                              <div className="text-center py-6">
                                  <div className="bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
@@ -302,16 +322,26 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
                                         onChange={(e) => setGoalAmount(e.target.value)}
                                      />
                                  </div>
+                                 {goalError && (
+                                     <div className="p-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded">
+                                         {goalError}
+                                     </div>
+                                 )}
                                  <div className="flex gap-2 pt-2">
                                      <button 
                                         onClick={handleSaveGoal}
-                                        className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex justify-center items-center"
+                                        disabled={savingGoal}
+                                        className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex justify-center items-center disabled:opacity-60"
                                      >
                                          <Save size={16} className="mr-1" /> Guardar
                                      </button>
-                                     {user.savingsGoal && (
+                                     {goal && (
                                          <button 
-                                            onClick={() => setIsEditingGoal(false)}
+                                            onClick={() => {
+                                                setGoalName(goal?.name || '');
+                                                setGoalAmount(goal?.targetAmount?.toString() || '');
+                                                setIsEditingGoal(false);
+                                            }}
                                             className="flex-1 bg-slate-100 text-slate-600 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 flex justify-center items-center"
                                          >
                                              <X size={16} className="mr-1" /> Cancelar
@@ -328,11 +358,11 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
                             <div className="flex justify-between items-end">
                                 <div>
                                     <p className="text-sm text-slate-500">Objetivo</p>
-                                    <h4 className="font-bold text-lg text-slate-800">{user.savingsGoal.name}</h4>
+                                    <h4 className="font-bold text-lg text-slate-800">{goal?.name}</h4>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-sm text-slate-500">Meta</p>
-                                    <p className="font-bold text-lg text-blue-600">${user.savingsGoal.targetAmount.toLocaleString()}</p>
+                                    <p className="font-bold text-lg text-blue-600">${goal?.targetAmount.toLocaleString()}</p>
                                 </div>
                             </div>
                             
@@ -373,8 +403,9 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
 
                         <button 
                             onClick={() => {
-                                setGoalName(user.savingsGoal!.name);
-                                setGoalAmount(user.savingsGoal!.targetAmount.toString());
+                                if (!goal) return;
+                                setGoalName(goal.name);
+                                setGoalAmount(goal.targetAmount.toString());
                                 setIsEditingGoal(true);
                             }}
                             className="w-full mt-4 border border-slate-200 text-slate-600 font-medium py-2 rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center text-sm"

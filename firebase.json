@@ -11,7 +11,7 @@
     }
   ],
   "hosting": {
-    "public": "dist/assests",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",

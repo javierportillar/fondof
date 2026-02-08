@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserProfile, Role } from '../../types';
-import { Users, ShoppingBag, LogOut, Wallet } from 'lucide-react';
+import { Users, ShoppingBag, LogOut, Store, ClipboardList } from 'lucide-react';
 
 interface AdminLayoutProps {
   user: UserProfile;
@@ -36,6 +36,13 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
               </Link>
             </div>
             <div className="flex items-center space-x-4">
+              <Link
+                to="/store"
+                className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold shadow-sm hover:bg-emerald-700 transition-colors"
+              >
+                <Store size={18} />
+                Ir a la tienda
+              </Link>
               <div className="hidden md:block text-right">
                 <p className="text-sm font-medium">{user.name}</p>
                 <p className="text-xs text-slate-400">Admin</p>
@@ -77,6 +84,17 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
                  >
                      <ShoppingBag size={18} className="mr-2" />
                      Gestión de Productos
+                 </Link>
+                 <Link 
+                    to="/admin/orders" 
+                    className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center transition-colors ${
+                        location.pathname.includes('/orders')
+                        ? 'border-emerald-500 text-emerald-600' 
+                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                    }`}
+                 >
+                     <ClipboardList size={18} className="mr-2" />
+                     Gestión de Pedidos
                  </Link>
              </div>
          </div>
