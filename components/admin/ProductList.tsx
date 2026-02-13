@@ -184,7 +184,8 @@ export default function ProductList() {
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredProducts.map(product => (
-                  <tr key={product.id} className="hover:bg-slate-50">
+                  <React.Fragment key={product.id}>
+                  <tr className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-semibold text-slate-800">{product.name}</td>
                     <td className="px-4 py-3 capitalize text-slate-500">{product.category}</td>
                     <td className="px-4 py-3">
@@ -197,14 +198,113 @@ export default function ProductList() {
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-700">${product.price.toLocaleString()}</td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleSaveStock(product)}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
-                      >
-                        <Save size={14} /> Guardar
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleSaveStock(product)}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700"
+                        >
+                          <Save size={14} /> Stock
+                        </button>
+                        <button
+                          onClick={() => handleEditProduct(product)}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                        >
+                          <Edit2 size={14} /> Editar
+                        </button>
+                      </div>
                     </td>
                   </tr>
+                  {editingProduct === product.id && (
+                    <tr className="bg-slate-50">
+                      <td colSpan={5} className="px-4 py-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-xs text-slate-500 font-bold">Nombre</label>
+                            <input
+                              className="w-full text-sm border p-2 rounded focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
+                              value={editForm.name || ''}
+                              onChange={e => setEditForm(prev => ({...prev, name: e.target.value}))}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 font-bold">Categoría</label>
+                            <select
+                              className="w-full text-sm border p-2 rounded focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
+                              value={editForm.category || 'despensa'}
+                              onChange={e => setEditForm(prev => ({...prev, category: e.target.value}))}
+                            >
+                              <option value="despensa">Despensa</option>
+                              <option value="aseo hogar">Aseo Hogar</option>
+                              <option value="cuidado personal">Cuidado</option>
+                              <option value="mecato">Mecato</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 font-bold">Precio</label>
+                            <input
+                              type="number"
+                              className="w-full text-sm border p-2 rounded focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
+                              value={editForm.price || 0}
+                              onChange={e => setEditForm(prev => ({...prev, price: Number(e.target.value)}))}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 font-bold">Stock</label>
+                            <input
+                              type="number"
+                              className="w-full text-sm border p-2 rounded focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
+                              value={editForm.stock || 0}
+                              onChange={e => setEditForm(prev => ({...prev, stock: Number(e.target.value)}))}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 font-bold">URL Imagen</label>
+                            <input
+                              className="w-full text-sm border p-2 rounded focus:ring-1 focus:ring-emerald-500 outline-none bg-white"
+                              value={editForm.image || ''}
+                              onChange={e => setEditForm(prev => ({...prev, image: e.target.value}))}
+                              placeholder="https://..."
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 font-bold">Golden</label>
+                            <label className="flex items-center gap-2 cursor-pointer bg-amber-50 px-2 py-2 rounded border border-amber-100 w-full justify-center hover:bg-amber-100 transition-colors">
+                              <input
+                                type="checkbox"
+                                className="accent-amber-500 w-4 h-4"
+                                checked={editForm.isGolden || false}
+                                onChange={e => setEditForm(prev => ({...prev, isGolden: e.target.checked}))}
+                              />
+                              <span className="text-xs font-bold text-amber-700 flex items-center"><Star size={12} className="mr-1 fill-amber-500"/> Golden</span>
+                            </label>
+                          </div>
+                          <div className="md:col-span-3">
+                            <label className="text-xs text-slate-500 font-bold">Descripción / Detalles</label>
+                            <textarea
+                              className="w-full text-sm border p-2 rounded focus:ring-1 focus:ring-emerald-500 outline-none bg-white min-h-[80px]"
+                              value={editForm.description || ''}
+                              onChange={e => setEditForm(prev => ({...prev, description: e.target.value}))}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={handleSaveProduct}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 flex items-center"
+                          >
+                            <Save size={16} className="mr-2" /> Guardar cambios
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm font-bold hover:bg-slate-50 flex items-center"
+                          >
+                            <X size={16} className="mr-2" /> Cancelar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

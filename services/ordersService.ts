@@ -50,6 +50,7 @@ export const OrdersService = {
       customerPhone: db.customer_phone,
       channel: db.channel,
       status: db.status,
+      paymentMethod: db.payment_method ?? null,
       items: db.items || [],
       notes: db.notes,
       createdAt: db.created_at,

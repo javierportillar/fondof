@@ -200,6 +200,10 @@ export const AuthService = {
 
       if (loansError) throw loansError
 
+      const historyBalance = historyData.reduce((sum, h) => {
+        return sum + (h.type === 'WITHDRAWAL' ? -h.amount : h.amount)
+      }, 0)
+
       // Transform data to match UserProfile interface
       const profile: UserProfile = {
         id: userData.id,
@@ -211,7 +215,7 @@ export const AuthService = {
         role: userData.role === 'ADMIN' ? Role.ADMIN : Role.USER,
         creditLimit: userData.credit_limit,
         savings: savingsData ? {
-          balance: savingsData.balance,
+          balance: historyData.length > 0 ? historyBalance : savingsData.balance,
           monthlyContribution: savingsData.monthly_contribution,
           lastContributionDate: savingsData.last_contribution_date || '',
           interestEarned: savingsData.interest_earned,

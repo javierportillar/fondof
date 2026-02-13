@@ -18,6 +18,7 @@ export default function UserList() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -138,7 +139,10 @@ export default function UserList() {
       {/* User List */}
       <div className="space-y-4">
         {paginatedUsers.map(u => (
-          <div key={u.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all">
+          <div
+            key={u.id}
+            className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all"
+          >
             <div className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
               
               {/* User Info Column */}
@@ -170,6 +174,7 @@ export default function UserList() {
                 <div className="flex flex-col sm:flex-row items-stretch gap-3 w-full md:w-auto">
                   <Link 
                     to={`/admin/users/${u.id}/loans`}
+                    onClick={(e) => e.stopPropagation()}
                     className={`flex items-center justify-center px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
                       u.loans.length > 0 
                         ? 'bg-blue-50 text-blue-700 hover:bg-blue-100'
@@ -191,14 +196,44 @@ export default function UserList() {
                   
                   <Link 
                     to={`/admin/users/${u.id}/savings`}
+                    onClick={(e) => e.stopPropagation()}
                     className="flex items-center justify-center px-4 py-2 bg-slate-50 text-slate-700 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors border border-slate-200"
                   >
                     <PiggyBank size={18} className="mr-2" />
                     Gestionar Ahorro
                   </Link>
+                  <button
+                    onClick={() => setExpandedUserId(prev => (prev === u.id ? null : u.id))}
+                    className="flex items-center justify-center px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg font-medium text-sm transition-colors"
+                  >
+                    {expandedUserId === u.id ? 'Ocultar detalles' : 'Ver detalles'}
+                  </button>
                 </div>
               )}
             </div>
+
+            {expandedUserId === u.id && (
+              <div className="px-6 pb-5 -mt-2">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 border border-slate-100 rounded-lg p-4 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-bold">Correo</p>
+                    <p className="text-slate-700 font-medium break-all">{u.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-bold">Cédula</p>
+                    <p className="text-slate-700 font-medium">{u.cedula}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-bold">Celular</p>
+                    <p className="text-slate-700 font-medium">{u.phoneNumber || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase font-bold">Creado</p>
+                    <p className="text-slate-700 font-medium">{new Date(u.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Quick Stats Footer */}
             {u.role !== Role.ADMIN && (

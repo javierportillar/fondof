@@ -2,8 +2,6 @@ import React from 'react';
 import { UserProfile } from '../types';
 import { TrendingUp, Wallet, AlertCircle, Calendar, CheckCircle2, ArrowRight } from 'lucide-react';
 import { 
-  AreaChart, 
-  Area, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -30,15 +28,41 @@ export default function Dashboard({ user }: DashboardProps) {
   const totalLoanPayments = user.loans.reduce((acc, loan) => acc + loan.monthlyPayment, 0);
   const totalDeductions = totalLoanPayments + user.savings.monthlyContribution;
 
-  // Prepare data for Savings Trend (AreaChart)
-  const savingsData = user.savings.history
-    .slice(0, 6)
-    .reverse()
-    .map(h => ({
-      name: new Date(h.date).toLocaleDateString('es-ES', { month: 'short' }),
-      amount: h.amount,
-      fullDate: new Date(h.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })
-    }));
+  // Prepare data for Savings Trend (Monthly Net + Projection)
+  const savingsData = React.useMemo(() => {
+    const monthlyNet = new Map<string, number>();
+    user.savings.history.forEach(h => {
+      const key = h.date.substring(0, 7); // YYYY-MM
+      const current = monthlyNet.get(key) ?? 0;
+      const delta = h.type === 'WITHDRAWAL' ? -h.amount : h.amount;
+      monthlyNet.set(key, current + delta);
+    });
+
+    const months = Array.from(monthlyNet.keys()).sort();
+    const lastKey = months.length > 0 ? months[months.length - 1] : new Date().toISOString().substring(0, 7);
+    const [lastYear, lastMonth] = lastKey.split('-').map(Number);
+    const lastDate = new Date(lastYear, lastMonth - 1, 1);
+
+    const avgMonthlyNet = months.length > 0
+      ? Array.from(monthlyNet.values()).reduce((s, v) => s + v, 0) / months.length
+      : user.savings.monthlyContribution;
+
+    const series = [];
+    for (let i = -4; i <= 3; i++) {
+      const d = new Date(lastDate);
+      d.setMonth(lastDate.getMonth() + i);
+      const key = d.toISOString().substring(0, 7);
+      const isForecast = i > 0;
+      const value = isForecast ? avgMonthlyNet : (monthlyNet.get(key) ?? 0);
+      series.push({
+        name: d.toLocaleDateString('es-ES', { month: 'short' }),
+        amount: Math.round(value),
+        type: isForecast ? 'forecast' : 'history',
+        fullDate: d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+      });
+    }
+    return series;
+  }, [user.savings.history, user.savings.monthlyContribution]);
 
   // Prepare data for Loan Progress (BarChart)
   const activeLoan = user.loans[0]; // Assuming single active loan for demo
@@ -158,18 +182,12 @@ export default function Dashboard({ user }: DashboardProps) {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-bold text-slate-800">Tendencia de Ahorro</h3>
-              <p className="text-sm text-slate-500">Crecimiento de tu capital en los últimos 6 meses</p>
+              <p className="text-sm text-slate-500">Último mes + 4 anteriores y proyección de 3 meses</p>
             </div>
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={savingsData}>
-                <defs>
-                  <linearGradient id="colorSavings" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
+              <BarChart data={savingsData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
                   dataKey="name" 
@@ -190,15 +208,12 @@ export default function Dashboard({ user }: DashboardProps) {
                   formatter={(value: number) => [`$${value.toLocaleString()}`, 'Monto']}
                   labelFormatter={(label) => `Periodo: ${label}`}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="amount" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#colorSavings)" 
-                />
-              </AreaChart>
+                <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                  {savingsData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.type === 'forecast' ? '#93c5fd' : '#10b981'} />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>

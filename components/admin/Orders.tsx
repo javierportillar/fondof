@@ -1,10 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, PhoneCall, CheckCircle2, Save, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ClipboardList, PhoneCall, CheckCircle2, Save, RefreshCw, AlertTriangle, BadgeDollarSign } from 'lucide-react';
 import { OrdersService } from '../../services/ordersService';
-import { Order, OrderItem, Product } from '../../types';
+import { Order, OrderItem, Product, OrderStatus, PaymentMethod } from '../../types';
 import { supabase } from '../../lib/supabase';
 
-type EditableOrder = Order & { draftItems: OrderItem[]; saving?: boolean; stockError?: string | null };
+type EditableOrder = Order & {
+  draftItems: OrderItem[];
+  saving?: boolean;
+  stockError?: string | null;
+  draftStatus?: OrderStatus;
+  draftPaymentMethod?: PaymentMethod | null;
+};
 
 export default function Orders() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
@@ -19,7 +25,12 @@ export default function Orders() {
       try {
         setLoading(true);
         const data = await OrdersService.list();
-        setOrders(data.map(o => ({ ...o, draftItems: o.items.slice() })));
+        setOrders(data.map(o => ({
+          ...o,
+          draftItems: o.items.slice(),
+          draftStatus: o.status,
+          draftPaymentMethod: o.paymentMethod ?? null
+        })));
       } catch (e: any) {
         setError(e.message || 'No se pudieron cargar los pedidos');
       } finally {
@@ -33,11 +44,17 @@ export default function Orders() {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, draftItems: updater(o.draftItems) } : o));
   };
 
+  const updateOrderMeta = (orderId: string, updates: Partial<EditableOrder>) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updates } : o));
+  };
+
   const persistEdits = async (order: EditableOrder) => {
     try {
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, saving: true, stockError: null } : o));
       const updated = await OrdersService.update(order.id, {
-        items: order.draftItems
+        items: order.draftItems,
+        status: order.draftStatus ?? order.status,
+        payment_method: order.draftPaymentMethod ?? null
       });
       setOrders(prev => prev.map(o => o.id === order.id ? { ...updated, draftItems: updated.items, saving: false } : o));
     } catch (e: any) {
@@ -66,7 +83,11 @@ export default function Orders() {
         if (uErr) throw uErr;
       }
 
-      const confirmed = await OrdersService.confirm(order);
+      const confirmed = await OrdersService.confirm({
+        ...order,
+        status: order.draftStatus ?? order.status,
+        paymentMethod: order.draftPaymentMethod ?? order.paymentMethod ?? null
+      });
       setOrders(prev => prev.map(o => o.id === order.id ? { ...confirmed, draftItems: confirmed.items, saving: false } : o));
     } catch (e: any) {
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, saving: false, stockError: e.message || 'No se pudo confirmar' } : o));
@@ -89,7 +110,12 @@ export default function Orders() {
           onClick={async () => {
             setLoading(true);
             const data = await OrdersService.list();
-            setOrders(data.map(o => ({ ...o, draftItems: o.items.slice() })));
+            setOrders(data.map(o => ({
+              ...o,
+              draftItems: o.items.slice(),
+              draftStatus: o.status,
+              draftPaymentMethod: o.paymentMethod ?? null
+            })));
             setLoading(false);
           }}
           className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-slate-50"
@@ -100,8 +126,8 @@ export default function Orders() {
 
       {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
 
-      <Section title="Pendientes de confirmación" items={pending} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} />
-      <Section title="Confirmados" items={confirmed} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} readonly />
+      <Section title="Pendientes de confirmación" items={pending} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} onUpdateMeta={updateOrderMeta} />
+      <Section title="Confirmados" items={confirmed} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} onUpdateMeta={updateOrderMeta} readonly />
     </div>
   );
 }
@@ -112,10 +138,11 @@ interface SectionProps {
   onEditItem: (orderId: string, updater: (items: OrderItem[]) => OrderItem[]) => void;
   onSave: (order: EditableOrder) => void;
   onConfirm: (order: EditableOrder) => void;
+  onUpdateMeta: (orderId: string, updates: Partial<EditableOrder>) => void;
   readonly?: boolean;
 }
 
-function Section({ title, items, onEditItem, onSave, onConfirm, readonly }: SectionProps) {
+function Section({ title, items, onEditItem, onSave, onConfirm, onUpdateMeta, readonly }: SectionProps) {
   if (!items.length) {
     return (
       <div className="bg-white border border-dashed border-slate-200 rounded-xl p-6 text-center text-slate-500">
@@ -142,8 +169,34 @@ function Section({ title, items, onEditItem, onSave, onConfirm, readonly }: Sect
                     {order.customerPhone && <p className="text-sm text-slate-500">{order.customerPhone}</p>}
                   </div>
                 </div>
-                <div className="text-sm text-slate-500">
-                  {new Date(order.createdAt).toLocaleString()}
+                <div className="text-sm text-slate-500 flex flex-col md:items-end gap-2">
+                  <div>{new Date(order.createdAt).toLocaleString()}</div>
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={order.draftStatus ?? order.status}
+                      onChange={(e) => onUpdateMeta(order.id, { draftStatus: e.target.value as OrderStatus })}
+                      disabled={readonly}
+                      className="border border-slate-200 rounded px-2 py-1 text-xs bg-white"
+                    >
+                      <option value="pending">Pendiente</option>
+                      <option value="confirmed">Confirmado</option>
+                      <option value="cancelled">Cancelado</option>
+                      <option value="paid">Pagado</option>
+                    </select>
+                    <div className="flex items-center gap-1 text-xs text-slate-600">
+                      <BadgeDollarSign size={14} />
+                      <select
+                        value={order.draftPaymentMethod ?? ''}
+                        onChange={(e) => onUpdateMeta(order.id, { draftPaymentMethod: e.target.value ? (e.target.value as PaymentMethod) : null })}
+                        disabled={readonly}
+                        className="border border-slate-200 rounded px-2 py-1 text-xs bg-white"
+                      >
+                        <option value="">Sin método</option>
+                        <option value="cash">Efectivo</option>
+                        <option value="nequi">Nequi</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
 

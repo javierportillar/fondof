@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { UserProfile, SavingsGoal } from '../types';
 import { ArrowUpRight, Target, TrendingUp, ArrowDownLeft, Plus, Edit2, Save, X, Calendar } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { UsersService } from '../services';
 
 interface SavingsSectionProps {
@@ -25,63 +25,71 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
     setGoalAmount(user.savingsGoal?.targetAmount?.toString() || '');
   }, [user.savingsGoal?.name, user.savingsGoal?.targetAmount, user.savingsGoal?.createdAt]);
 
-  // 1. Chart Data Processing (Aggregate by Month)
-  const chartData = useMemo(() => {
-    const monthMap = new Map<string, { dateObj: Date, balance: number, deposit: number }>();
-    
-    // Sort history chronologically
+  // 1. Monthly totals (net) for bar chart
+  const monthlyTotalsData = useMemo(() => {
+    const monthlyNet = new Map<string, number>();
+    user.savings.history.forEach(h => {
+      const key = h.date.substring(0, 7); // YYYY-MM
+      const current = monthlyNet.get(key) ?? 0;
+      const delta = h.type === 'WITHDRAWAL' ? -h.amount : h.amount;
+      monthlyNet.set(key, current + delta);
+    });
+    const sortedKeys = Array.from(monthlyNet.keys()).sort();
+    const recentKeys = sortedKeys.slice(-6);
+    return recentKeys.map(key => {
+      const [year, month] = key.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, 1);
+      return {
+        name: dateObj.toLocaleDateString('es-ES', { month: 'short' }),
+        fullName: dateObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }),
+        amount: monthlyNet.get(key) ?? 0
+      };
+    });
+  }, [user.savings.history]);
+
+  // 2. Projection chart (balance over time)
+  const projectionData = useMemo(() => {
     const sortedHistory = [...user.savings.history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    
     let runningBalance = 0;
+    const historyPoints: { name: string; balance: number; type: 'history' | 'forecast' }[] = [];
+    const monthMap = new Map<string, number>();
 
-    // Process all history
     sortedHistory.forEach(h => {
-        if (h.type === 'WITHDRAWAL') {
-            runningBalance -= h.amount;
-        } else {
-            runningBalance += h.amount;
-        }
-
-        const [year, month] = h.date.split('-');
-        const key = `${year}-${month}`;
-        
-        monthMap.set(key, {
-            dateObj: new Date(Number(year), Number(month) - 1, 1),
-            balance: runningBalance,
-            deposit: h.type === 'DEPOSIT' ? h.amount : 0 
-        });
+      const key = h.date.substring(0, 7);
+      const current = monthMap.get(key) ?? 0;
+      const delta = h.type === 'WITHDRAWAL' ? -h.amount : h.amount;
+      monthMap.set(key, current + delta);
     });
 
-    const historyData = Array.from(monthMap.entries()).map(([key, value]) => ({
-        name: value.dateObj.toLocaleDateString('es-ES', { month: 'short' }),
-        fullName: value.dateObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }),
-        balance: value.balance,
-        type: 'history',
-        fullDate: key // YYYY-MM
-    }));
+    const keys = Array.from(monthMap.keys()).sort();
+    keys.forEach(key => {
+      runningBalance += monthMap.get(key) ?? 0;
+      const [year, month] = key.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, 1);
+      historyPoints.push({
+        name: dateObj.toLocaleDateString('es-ES', { month: 'short' }),
+        balance: runningBalance,
+        type: 'history'
+      });
+    });
 
-    // Forecast Data
-    const lastBalance = historyData.length > 0 ? historyData[historyData.length - 1].balance : 0;
-    const lastDate = historyData.length > 0 ? new Date(monthMap.get(historyData[historyData.length - 1].fullDate)!.dateObj) : new Date();
-    
-    const forecastData = [];
-    let projectedBalance = lastBalance;
+    const lastKey = keys.length > 0 ? keys[keys.length - 1] : new Date().toISOString().substring(0, 7);
+    const [lastYear, lastMonth] = lastKey.split('-').map(Number);
+    const lastDate = new Date(lastYear, lastMonth - 1, 1);
+    let projectedBalance = runningBalance;
 
     for (let i = 1; i <= 6; i++) {
-        const nextDate = new Date(lastDate);
-        nextDate.setMonth(lastDate.getMonth() + i);
-        projectedBalance += user.savings.monthlyContribution;
-
-        forecastData.push({
-            name: nextDate.toLocaleDateString('es-ES', { month: 'short' }),
-            fullName: nextDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }),
-            balance: projectedBalance,
-            type: 'forecast',
-            fullDate: nextDate.toISOString().split('T')[0]
-        });
+      const nextDate = new Date(lastDate);
+      nextDate.setMonth(lastDate.getMonth() + i);
+      projectedBalance += user.savings.monthlyContribution;
+      historyPoints.push({
+        name: nextDate.toLocaleDateString('es-ES', { month: 'short' }),
+        balance: projectedBalance,
+        type: 'forecast'
+      });
     }
 
-    return [...historyData, ...forecastData];
+    return historyPoints;
   }, [user.savings.history, user.savings.monthlyContribution]);
 
   // 2. Yearly Summary Logic
@@ -120,13 +128,19 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
     const target = goal.targetAmount;
     const progress = Math.min(100, Math.max(0, (currentBalance / target) * 100));
     
-    // Calculate Average Monthly Savings based on history
-    const deposits = user.savings.history.filter(h => h.type === 'DEPOSIT');
-    const totalDeposited = deposits.reduce((sum, h) => sum + h.amount, 0);
-    const uniqueMonths = new Set(deposits.map(h => h.date.substring(0, 7))).size; // "YYYY-MM"
-    
-    // Use average or fall back to current configured contribution if no history
-    const avgSavings = uniqueMonths > 0 ? (totalDeposited / uniqueMonths) : user.savings.monthlyContribution;
+    // Calculate Average Monthly Savings based on monthly net (deposits - withdrawals)
+    const monthlyNet = new Map<string, number>();
+    user.savings.history.forEach(h => {
+      const key = h.date.substring(0, 7); // "YYYY-MM"
+      const current = monthlyNet.get(key) ?? 0;
+      const delta = h.type === 'WITHDRAWAL' ? -h.amount : h.amount;
+      monthlyNet.set(key, current + delta);
+    });
+    const monthCount = monthlyNet.size;
+    const totalNet = Array.from(monthlyNet.values()).reduce((sum, v) => sum + v, 0);
+
+    // Use average monthly net or fall back to configured contribution if no history
+    const avgSavings = monthCount > 0 ? (totalNet / monthCount) : user.savings.monthlyContribution;
     const effectiveSavingsRate = avgSavings > 0 ? avgSavings : 1; // Prevent div by zero
 
     const remainingAmount = Math.max(0, target - currentBalance);
@@ -214,58 +228,84 @@ export default function SavingsSection({ user, onUpdateUser }: SavingsSectionPro
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Chart */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center">
-              <TrendingUp className="mr-2 text-emerald-600" size={20} />
-              Proyección de Ahorro
-            </h3>
-            <div className="flex items-center text-xs space-x-3">
-              <span className="flex items-center"><span className="w-3 h-3 rounded-full bg-emerald-500 mr-1"></span> Histórico</span>
-              <span className="flex items-center"><span className="w-3 h-3 rounded-full bg-emerald-300 mr-1 border border-emerald-500 border-dashed"></span> Proyección (6 meses)</span>
+        {/* Charts */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Monthly Total Savings */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                <TrendingUp className="mr-2 text-emerald-600" size={20} />
+                Ahorro Total Mensual
+              </h3>
             </div>
-          </div>
-          
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorHistory" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6ee7b7" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6ee7b7" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `$${value/1000}k`} />
-                <Tooltip 
-                  formatter={(value: number, name: string, props: any) => {
-                      const additional = props.payload.type === 'forecast' ? '(Proyección)' : '';
-                      return [`$${value.toLocaleString()} ${additional}`, 'Capital Acumulado'];
-                  }}
-                  labelFormatter={(label, payload) => {
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyTotalsData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `$${value/1000}k`} />
+                  <Tooltip 
+                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Ahorro neto']}
+                    labelFormatter={(label, payload) => {
                       if (payload && payload.length > 0) {
-                          return payload[0].payload.fullName || label;
+                        return payload[0].payload.fullName || label;
                       }
                       return label;
-                  }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="balance" 
-                  stroke="#10b981" 
-                  strokeWidth={3}
-                  fill="url(#colorHistory)" 
-                  activeDot={{ r: 6 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+                    }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                    {monthlyTotalsData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill="#10b981" />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Projection Chart */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center">
+                <TrendingUp className="mr-2 text-emerald-600" size={20} />
+                Proyección de Ahorro
+              </h3>
+              <div className="flex items-center text-xs space-x-3">
+                <span className="flex items-center"><span className="w-3 h-3 rounded-full bg-emerald-500 mr-1"></span> Histórico</span>
+                <span className="flex items-center"><span className="w-3 h-3 rounded-full bg-emerald-300 mr-1 border border-emerald-500 border-dashed"></span> Proyección (6 meses)</span>
+              </div>
+            </div>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={projectionData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorHistory" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(value) => `$${value/1000}k`} />
+                  <Tooltip 
+                    formatter={(value: number, name: string, props: any) => {
+                      const additional = props.payload.type === 'forecast' ? '(Proyección)' : '';
+                      return [`$${value.toLocaleString()} ${additional}`, 'Capital Acumulado'];
+                    }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="balance" 
+                    stroke="#10b981" 
+                    strokeWidth={3}
+                    fill="url(#colorHistory)" 
+                    activeDot={{ r: 6 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
 

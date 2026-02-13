@@ -88,7 +88,8 @@ export interface Product {
 }
 
 export type OrderChannel = 'whatsapp' | 'store';
-export type OrderStatus = 'pending' | 'confirmed' | 'cancelled';
+export type OrderStatus = 'pending' | 'confirmed' | 'cancelled' | 'paid';
+export type PaymentMethod = 'cash' | 'nequi';
 
 export interface OrderItem {
   productId: string;
@@ -104,6 +105,7 @@ export interface DatabaseOrder {
   customer_phone?: string;
   channel: OrderChannel;
   status: OrderStatus;
+  payment_method?: PaymentMethod | null;
   items: OrderItem[];
   notes?: string;
   created_at: string;
@@ -117,6 +119,7 @@ export interface Order {
   customerPhone?: string;
   channel: OrderChannel;
   status: OrderStatus;
+  paymentMethod?: PaymentMethod | null;
   items: OrderItem[];
   notes?: string;
   createdAt: string;
