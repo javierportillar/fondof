@@ -87,7 +87,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
   const sendOrderToWhatsApp = async () => {
     if (cart.length === 0) return;
 
-    let message = `Hola *Fondo Fortuna*, quisiera realizar el siguiente pedido de la Tienda Solidaria:%0A%0A`;
+    let message = `Hola *Fondo Fortuna*, quisiera realizar el siguiente pedido de la Tienda Fondo Fortuna:%0A%0A`;
 
     cart.forEach(item => {
       const subtotal = item.product.price * item.qty;
@@ -194,9 +194,9 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
   return (
     <div className="relative min-h-screen bg-slate-50">
       <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <header className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Tienda Solidaria</h2>
+          <h1 className="text-2xl font-bold text-slate-800">Tienda Fondo Fortuna</h1>
           <p className="text-slate-500">Productos de la canasta familiar a precios justos.</p>
         </div>
         
@@ -347,7 +347,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
           </Drawer.Portal>
           </Drawer.Root>
         </div>
-      </div>
+      </header>
 
       {/* Mobile fixed cart bar */}
       <div className="sm:hidden fixed bottom-4 left-4 right-4 z-30">
@@ -372,7 +372,8 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
       </div>
 
       {/* Search Bar */}
-      <div className="relative max-w-md">
+      <section aria-labelledby="search-products" className="relative max-w-md">
+        <h2 id="search-products" className="sr-only">Buscar productos</h2>
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
         <input 
           type="text" 
@@ -381,9 +382,11 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-      </div>
+      </section>
 
       {/* Category Filters */}
+      <section aria-labelledby="category-filters">
+      <h2 id="category-filters" className="sr-only">Filtrar por categoría</h2>
       <LayoutGroup>
         <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map(category => {
@@ -393,12 +396,12 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className="relative flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap border overflow-hidden transition-all bg-white"
+                className="relative flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap border border-slate-200 overflow-hidden transition-all bg-white"
               >
                 {isSelected && (
                   <motion.span
                     layoutId="pill"
-                    className={`absolute inset-0 ${category.isGolden ? 'bg-amber-400' : 'bg-emerald-600'}`}
+                    className={`absolute inset-0 rounded-full ${category.isGolden ? 'bg-amber-400' : 'bg-emerald-600'}`}
                     transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                   />
                 )}
@@ -411,8 +414,11 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
           })}
         </div>
       </LayoutGroup>
+      </section>
 
       {/* Product Grid */}
+      <section aria-labelledby="products-grid">
+      <h2 id="products-grid" className="sr-only">Productos</h2>
       {error && (
         <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
       )}
@@ -421,7 +427,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
       )}
 
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-6"
       >
         {filteredProducts.map(product => {
           const inCart = cart.find(c => c.product.id === product.id);
@@ -494,6 +500,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
             <p className="text-slate-400 text-sm">Intenta con otro término de búsqueda o categoría</p>
         </div>
       )}
+      </section>
 
       {/* Cart Sidebar / Modal */}
       {isCartOpen && (
@@ -608,6 +615,21 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
         </div>
       )}
       </div>
+      <footer className="mt-10 border-t border-slate-200 bg-white">
+        <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 text-sm text-slate-600">
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <div>
+              <p className="font-semibold text-slate-800">Fondo Fortuna</p>
+              <p className="text-slate-500">Tienda Fondo Fortuna· Precios justos para la canasta familiar.</p>
+            </div>
+            <div className="flex gap-6">
+              <span>Contacto: 3104100513
+              </span>
+              <span>Horario: Lun–Sáb</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

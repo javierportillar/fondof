@@ -59,7 +59,7 @@ export default function UserLayout({ user, onLogout }: UserLayoutProps) {
           <NavItem path="/dashboard" icon={LayoutDashboard} label="Resumen General" />
           <NavItem path="/loans" icon={Wallet} label="Mis Préstamos" />
           <NavItem path="/savings" icon={PiggyBank} label="Ahorro Programado" />
-          <NavItem path="/store" icon={ShoppingBasket} label="Tienda Solidaria" />
+          <NavItem path="/store" icon={ShoppingBasket} label="Tienda Fondo Fortuna" />
           <div className="pt-4 border-t border-slate-100 mt-4">
             <NavItem path="/advisor" icon={Bot} label="Asesor IA" />
           </div>
@@ -105,7 +105,7 @@ export default function UserLayout({ user, onLogout }: UserLayoutProps) {
           <NavItem path="/dashboard" icon={LayoutDashboard} label="Resumen General" />
           <NavItem path="/loans" icon={Wallet} label="Mis Préstamos" />
           <NavItem path="/savings" icon={PiggyBank} label="Ahorro Programado" />
-          <NavItem path="/store" icon={ShoppingBasket} label="Tienda Solidaria" />
+          <NavItem path="/store" icon={ShoppingBasket} label="Tienda Fondo Fortuna" />
           <NavItem path="/advisor" icon={Bot} label="Asesor IA" />
           <button 
               onClick={handleLogout}

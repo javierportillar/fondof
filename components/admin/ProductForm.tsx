@@ -47,7 +47,7 @@ export default function ProductForm({ onAddProduct }: ProductFormProps) {
             </Link>
             <div>
                 <h2 className="text-xl font-bold text-slate-800">Agregar Nuevo Producto</h2>
-                <p className="text-sm text-slate-500">Añade un artículo a la Tienda Solidaria</p>
+                <p className="text-sm text-slate-500">Añade un artículo a la Tienda Fondo Fortuna</p>
             </div>
          </div>
 

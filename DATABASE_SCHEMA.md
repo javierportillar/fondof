@@ -134,7 +134,7 @@
 ---
 
 ### 6️⃣ PRODUCTS (Productos)
-**Propósito**: Catálogo de productos de la tienda solidaria.
+**Propósito**: Catálogo de productos de la tienda Fondo Fortuna.
 
 | Campo       | Tipo        | Restricciones              | Descripción                    |
 |-------------|-------------|----------------------------|--------------------------------|
