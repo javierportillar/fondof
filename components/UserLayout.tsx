@@ -87,7 +87,7 @@ export default function UserLayout({ user, onLogout }: UserLayoutProps) {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed w-full bg-white border-b border-slate-200 z-20 px-4 py-3 flex items-center justify-between">
+      <div className="md:hidden fixed w-full bg-white border-b border-slate-200 z-40 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-2">
            <div className="bg-emerald-600 p-1.5 rounded-lg">
             <Wallet className="text-white" size={20} />
@@ -101,7 +101,7 @@ export default function UserLayout({ user, onLogout }: UserLayoutProps) {
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-white z-10 pt-16 px-4 md:hidden flex flex-col space-y-2">
+        <div className="fixed inset-0 bg-white z-30 pt-16 px-4 md:hidden flex flex-col space-y-2">
           <NavItem path="/dashboard" icon={LayoutDashboard} label="Resumen General" />
           <NavItem path="/loans" icon={Wallet} label="Mis Préstamos" />
           <NavItem path="/savings" icon={PiggyBank} label="Ahorro Programado" />

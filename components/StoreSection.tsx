@@ -3,6 +3,8 @@ import { Product, UserProfile } from '../types';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { Search, ShoppingCart, Star, Plus, Minus, Trash2, X, MessageCircle, ShoppingBag, Sparkles, Heart, Cookie, LayoutGrid } from 'lucide-react';
+import { Drawer } from 'vaul';
+import { motion, LayoutGroup, AnimatePresence } from 'framer-motion';
 
 interface StoreSectionProps {
   userId?: string;
@@ -71,6 +73,16 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
 
   const cartTotal = cart.reduce((acc, item) => acc + (item.product.price * item.qty), 0);
   const cartItemCount = cart.reduce((acc, item) => acc + item.qty, 0);
+
+  const gridVariants = {
+    show: { transition: { staggerChildren: 0.06 } },
+    hidden: {}
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 14 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 22 } }
+  };
 
   const sendOrderToWhatsApp = async () => {
     if (cart.length === 0) return;
@@ -181,7 +193,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
 
   return (
     <div className="relative min-h-screen bg-slate-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Tienda Solidaria</h2>
@@ -189,23 +201,25 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
         </div>
         
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setIsCartOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 transition-colors text-white px-6 py-3 rounded-xl flex items-center shadow-md group"
-          >
-              <div className="relative">
-                <ShoppingCart size={22} className="mr-3 group-hover:scale-110 transition-transform" />
-                {cartItemCount > 0 && (
-                  <span className="absolute -top-2 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-emerald-600">
-                    {cartItemCount}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col items-start text-sm">
-                <span className="font-medium opacity-90">Tu Carrito</span>
-                <span className="font-bold text-lg leading-none">${cartTotal.toLocaleString()}</span>
-              </div>
-          </button>
+          <Drawer.Root open={isCartOpen} onOpenChange={setIsCartOpen} direction="right">
+            <Drawer.Trigger asChild>
+              <button 
+                className="hidden sm:flex bg-emerald-600 hover:bg-emerald-700 transition-colors text-white px-6 py-3 rounded-xl items-center shadow-md group"
+              >
+                  <div className="relative">
+                    <ShoppingCart size={22} className="mr-3 group-hover:scale-110 transition-transform" />
+                    {cartItemCount > 0 && (
+                      <span className="absolute -top-2 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-emerald-600">
+                        {cartItemCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col items-start text-sm">
+                    <span className="font-medium opacity-90">Tu Carrito</span>
+                    <span className="font-bold text-lg leading-none">${cartTotal.toLocaleString()}</span>
+                  </div>
+              </button>
+            </Drawer.Trigger>
 
           {!profile && (
             <Link to="/login" className="px-4 py-2 border border-emerald-600 text-emerald-700 rounded-lg font-semibold hover:bg-emerald-50">
@@ -222,7 +236,139 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
               <button onClick={onLogout} className="text-sm text-slate-500 hover:text-slate-700">Cerrar sesión</button>
             </>
           )}
+          <Drawer.Portal>
+            <Drawer.Overlay className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-40" />
+            <Drawer.Content className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-50 shadow-2xl">
+              <div className="relative w-full h-full flex flex-col">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                    <ShoppingCart className="mr-2 text-emerald-600" size={24} /> 
+                    Tu Pedido
+                  </h2>
+                  <Drawer.Close asChild>
+                    <button 
+                      className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500"
+                    >
+                      <X size={24} />
+                    </button>
+                  </Drawer.Close>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  {cart.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                        <ShoppingCart size={28} />
+                      </div>
+                      <p className="text-slate-500 font-medium">Tu carrito está vacío</p>
+                    </div>
+                  ) : (
+                    <AnimatePresence>
+                      {cart.map(item => (
+                        <motion.div
+                          key={item.product.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                          className="flex gap-4 items-center bg-white rounded-xl border border-slate-100 p-4 shadow-sm"
+                        >
+                          <img 
+                            src={item.product.image} 
+                            alt={item.product.name} 
+                            className="w-20 h-20 rounded-lg object-cover bg-slate-100 border border-slate-200"
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-bold text-slate-800">{item.product.name}</h4>
+                              <button 
+                                onClick={() => removeFromCart(item.product.id)}
+                                className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                            <p className="text-emerald-600 font-bold mb-2">${item.product.price.toLocaleString()}</p>
+                            
+                            <div className="flex items-center bg-slate-100 rounded-lg w-fit">
+                              <button 
+                                onClick={() => updateQuantity(item.product.id, -1)}
+                                className="p-1.5 hover:text-emerald-600 disabled:opacity-50"
+                                disabled={item.qty <= 1}
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <span className="w-8 text-center font-medium text-sm">{item.qty}</span>
+                              <button 
+                                onClick={() => updateQuantity(item.product.id, 1)}
+                                className="p-1.5 hover:text-emerald-600"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  )}
+                </div>
+
+                {cart.length > 0 && (
+                  <div className="p-6 border-t border-slate-100 bg-slate-50">
+                    <div className="flex justify-between items-center mb-2 text-slate-500 text-sm">
+                      <span>Subtotal ({cartItemCount} items)</span>
+                      <span>${cartTotal.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="font-bold text-lg text-slate-800">Total a Pagar</span>
+                      <span className="font-bold text-2xl text-emerald-600">${cartTotal.toLocaleString()}</span>
+                    </div>
+                    
+                    <button 
+                      onClick={sendOrderToWhatsApp}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-md transition-all hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <MessageCircle size={24} />
+                      Enviar Pedido por WhatsApp
+                    </button>
+                    <button 
+                      onClick={registerPurchase}
+                      className="w-full mt-3 bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-bold shadow-md transition-all hover:shadow-lg flex items-center justify-center gap-2"
+                    >
+                      Registrar compra
+                    </button>
+                    <p className="text-center text-xs text-slate-400 mt-3">
+                      Serás redirigido a WhatsApp para confirmar tu pedido con un asesor.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Drawer.Content>
+          </Drawer.Portal>
+          </Drawer.Root>
         </div>
+      </div>
+
+      {/* Mobile fixed cart bar */}
+      <div className="sm:hidden fixed bottom-4 left-4 right-4 z-30">
+        <Drawer.Root open={isCartOpen} onOpenChange={setIsCartOpen} direction="bottom">
+          <Drawer.Trigger asChild>
+            <button className="w-full bg-emerald-600 hover:bg-emerald-700 transition-colors text-white px-4 py-3 rounded-2xl shadow-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <ShoppingCart size={22} />
+                  {cartItemCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-emerald-600">
+                      {cartItemCount}
+                    </span>
+                  )}
+                </div>
+                <span className="font-semibold">Ver carrito</span>
+              </div>
+              <span className="font-bold">${cartTotal.toLocaleString()}</span>
+            </button>
+          </Drawer.Trigger>
+        </Drawer.Root>
       </div>
 
       {/* Search Bar */}
@@ -238,28 +384,33 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
       </div>
 
       {/* Category Filters */}
-      <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
-        {categories.map(category => {
-          const Icon = category.icon;
-          const isSelected = selectedCategory === category.id;
-          return (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap transition-all ${
-                isSelected 
-                  ? category.isGolden 
-                    ? 'bg-amber-100 text-amber-700 border-amber-200 ring-2 ring-amber-200'
-                    : 'bg-emerald-600 text-white shadow-md'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <Icon size={18} className={category.isGolden && !isSelected ? 'text-amber-500' : ''} />
-              <span className="font-medium">{category.name}</span>
-            </button>
-          );
-        })}
-      </div>
+      <LayoutGroup>
+        <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+          {categories.map(category => {
+            const Icon = category.icon;
+            const isSelected = selectedCategory === category.id;
+            return (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className="relative flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap border overflow-hidden transition-all bg-white"
+              >
+                {isSelected && (
+                  <motion.span
+                    layoutId="pill"
+                    className={`absolute inset-0 ${category.isGolden ? 'bg-amber-400' : 'bg-emerald-600'}`}
+                    transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  <Icon size={18} className={isSelected ? 'text-white' : category.isGolden ? 'text-amber-500' : 'text-slate-600'} />
+                  <span className={`font-medium ${isSelected ? 'text-white' : 'text-slate-600'}`}>{category.name}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </LayoutGroup>
 
       {/* Product Grid */}
       {error && (
@@ -269,12 +420,20 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
         <div className="p-4 text-slate-500 text-sm">Cargando productos...</div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <motion.div
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+      >
         {filteredProducts.map(product => {
           const inCart = cart.find(c => c.product.id === product.id);
           return (
-            <div 
+            <motion.div 
               key={product.id} 
+              variants={cardVariants}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.2 }}
+              whileHover={{ y: -4 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25 }}
               className={`bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col hover:shadow-lg transition-all duration-300 group relative ${
                 product.isGolden ? 'border-amber-200 ring-1 ring-amber-100' : 'border-slate-100'
               }`}
@@ -311,20 +470,22 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
                 
                 <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-4">
                   <span className="text-xl font-bold text-slate-900">${product.price.toLocaleString()}</span>
-                  <button 
+                  <motion.button 
                     onClick={() => addToCart(product)}
+                    whileTap={{ scale: 0.92 }}
+                    whileHover={{ scale: 1.03 }}
                     className={`p-2.5 rounded-xl transition-colors shadow-sm active:scale-95 transform text-white ${
                       product.isGolden ? 'bg-amber-500 hover:bg-amber-600' : 'bg-slate-900 hover:bg-emerald-600'
                     }`}
                   >
                     <Plus size={20} />
-                  </button>
+                  </motion.button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
       
       {!loading && filteredProducts.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
