@@ -12,6 +12,7 @@ import SavingsSection from './components/SavingsSection';
 import LoanSection from './components/LoanSection';
 import StoreSection from './components/StoreSection';
 import Advisor from './components/Advisor';
+import UserOrders from './components/UserOrders';
 
 // Layouts
 import AdminLayout from './components/admin/AdminLayout';
@@ -67,6 +68,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard user={profile || undefined as any} />} />
         <Route path="/loans" element={<LoanSection user={profile || undefined as any} />} />
         <Route path="/savings" element={<SavingsSection user={profile || undefined as any} />} />
+        <Route path="/orders" element={<UserOrders userId={profile?.id || ''} />} />
         <Route path="/advisor" element={<Advisor user={profile || undefined as any} />} />
       </Route>
 

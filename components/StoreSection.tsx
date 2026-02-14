@@ -98,32 +98,37 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
     message += `%0A%0AMuchas gracias.`;
 
     const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${message}`;
-    try {
-      const itemsPayload = cart.map(item => ({
-        productId: item.product.id,
-        name: item.product.name,
-        quantity: item.qty,
-        price: item.product.price
-      }));
+    const itemsPayload = cart.map(item => ({
+      productId: item.product.id,
+      name: item.product.name,
+      quantity: item.qty,
+      price: item.product.price
+    }));
 
-      const { error } = await supabase
-        .from('orders')
-        .insert([{
-          user_id: userId ?? null,
-          customer_name: profile?.name || 'Cliente WhatsApp',
-          customer_phone: profile?.phoneNumber || null,
-          channel: 'whatsapp',
-          status: 'pending',
-          items: itemsPayload
-        }]);
-      if (error) throw error;
+    // Abrir WhatsApp inmediatamente para evitar bloqueo de popups en móvil
+    window.location.href = url;
 
-      window.open(url, '_blank');
-      setCart([]);
-    } catch (err: any) {
-      console.error('Error creando pedido', err);
-      alert(err?.message || 'No se pudo crear el pedido.');
-    }
+    // Registrar el pedido en segundo plano
+    supabase
+      .from('orders')
+      .insert([{
+        user_id: userId ?? null,
+        customer_name: profile?.name || 'Cliente WhatsApp',
+        customer_phone: profile?.phoneNumber || null,
+        channel: 'whatsapp',
+        status: 'pending',
+        items: itemsPayload
+      }])
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error creando pedido', error);
+        } else {
+          setCart([]);
+        }
+      })
+      .catch(err => {
+        console.error('Error creando pedido', err);
+      });
   };
 
   const registerPurchase = async () => {
@@ -427,7 +432,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
       )}
 
       <motion.div
-        className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-6"
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-6"
       >
         {filteredProducts.map(product => {
           const inCart = cart.find(c => c.product.id === product.id);
@@ -469,13 +474,13 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
                   </div>
                 )}
               </div>
-              <div className="p-4 flex-1 flex flex-col">
-                <span className="text-xs text-emerald-600 font-medium mb-1 uppercase tracking-wide">{product.category}</span>
-                <h3 className="font-bold text-slate-800 text-lg mb-1">{product.name}</h3>
-                <p className="text-sm text-slate-500 mb-4 flex-1">{product.description || `Stock: ${product.stock}`}</p>
-                
-                <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-4">
-                  <span className="text-xl font-bold text-slate-900">${product.price.toLocaleString()}</span>
+              <div className="p-3 sm:p-4 flex-1 flex flex-col">
+                <span className="text-[10px] sm:text-xs text-emerald-600 font-medium mb-1 uppercase tracking-wide">{product.category}</span>
+                <h3 className="font-bold text-slate-800 text-lg sm:text-xl mb-1 leading-tight">{product.name}</h3>
+                <p className="text-xs sm:text-sm text-slate-500 mb-2 flex-1">{product.description || `Stock: ${product.stock}`}</p>
+                <div className="h-px w-full bg-slate-200/70 mb-2" />
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-slate-900">${product.price.toLocaleString()}</span>
                   <motion.button 
                     onClick={() => addToCart(product)}
                     whileTap={{ scale: 0.92 }}

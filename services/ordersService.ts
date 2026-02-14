@@ -33,7 +33,7 @@ export const OrdersService = {
   async confirm(order: Order): Promise<Order> {
     const { data, error } = await supabase
       .from('orders')
-      .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+      .update({ status: 'paid', confirmed_at: new Date().toISOString() })
       .eq('id', order.id)
       .select()
       .single()

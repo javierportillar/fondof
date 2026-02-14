@@ -16,9 +16,33 @@ export default function Orders() {
   const [orders, setOrders] = useState<EditableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | OrderStatus>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | PaymentMethod | 'none'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  const pending = useMemo(() => orders.filter(o => o.status === 'pending'), [orders]);
-  const confirmed = useMemo(() => orders.filter(o => o.status === 'confirmed'), [orders]);
+  const filteredOrders = useMemo(() => {
+    return orders.filter(o => {
+      if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (paymentFilter === 'none' && o.paymentMethod) return false;
+      if (paymentFilter !== 'all' && paymentFilter !== 'none' && o.paymentMethod !== paymentFilter) return false;
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        if (new Date(o.createdAt) < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (new Date(o.createdAt) > to) return false;
+      }
+      return true;
+    });
+  }, [orders, statusFilter, paymentFilter, dateFrom, dateTo]);
+
+  const pending = useMemo(() => filteredOrders.filter(o => o.status === 'pending'), [filteredOrders]);
+  const confirmed = useMemo(() => filteredOrders.filter(o => o.status === 'confirmed'), [filteredOrders]);
+  const paid = useMemo(() => filteredOrders.filter(o => o.status === 'paid'), [filteredOrders]);
+  const cancelled = useMemo(() => filteredOrders.filter(o => o.status === 'cancelled'), [filteredOrders]);
 
   useEffect(() => {
     const load = async () => {
@@ -65,6 +89,10 @@ export default function Orders() {
 
   const confirmOrder = async (order: EditableOrder) => {
     try {
+      if (!order.draftPaymentMethod) {
+        setOrders(prev => prev.map(o => o.id === order.id ? { ...o, stockError: 'Selecciona un método de pago antes de confirmar.' } : o));
+        return;
+      }
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, saving: true, stockError: null } : o));
 
       // Descontar stock por item
@@ -85,8 +113,8 @@ export default function Orders() {
 
       const confirmed = await OrdersService.confirm({
         ...order,
-        status: order.draftStatus ?? order.status,
-        paymentMethod: order.draftPaymentMethod ?? order.paymentMethod ?? null
+        status: 'paid',
+        paymentMethod: order.draftPaymentMethod
       });
       setOrders(prev => prev.map(o => o.id === order.id ? { ...confirmed, draftItems: confirmed.items, saving: false } : o));
     } catch (e: any) {
@@ -124,10 +152,64 @@ export default function Orders() {
         </button>
       </div>
 
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col lg:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 flex-1">
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-500 font-bold">Estado</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-white"
+            >
+              <option value="all">Todos</option>
+              <option value="pending">Pendiente</option>
+              <option value="confirmed">Confirmado</option>
+              <option value="paid">Pagado</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-500 font-bold">Método</label>
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value as any)}
+              className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-white"
+            >
+              <option value="all">Todos</option>
+              <option value="none">Sin método</option>
+              <option value="cash">Efectivo</option>
+              <option value="nequi">Nequi</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-500 font-bold">Desde</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-white"
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-slate-500 font-bold">Hasta</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="border border-slate-200 rounded-md px-3 py-2 text-sm bg-white"
+            />
+          </div>
+        </div>
+      </div>
+
       {error && <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>}
 
       <Section title="Pendientes de confirmación" items={pending} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} onUpdateMeta={updateOrderMeta} />
       <Section title="Confirmados" items={confirmed} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} onUpdateMeta={updateOrderMeta} readonly />
+      <Section title="Pagados" items={paid} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} onUpdateMeta={updateOrderMeta} readonly />
+      <Section title="Cancelados" items={cancelled} onEditItem={updateOrderDraft} onSave={persistEdits} onConfirm={confirmOrder} onUpdateMeta={updateOrderMeta} readonly />
     </div>
   );
 }
@@ -171,25 +253,25 @@ function Section({ title, items, onEditItem, onSave, onConfirm, onUpdateMeta, re
                 </div>
                 <div className="text-sm text-slate-500 flex flex-col md:items-end gap-2">
                   <div>{new Date(order.createdAt).toLocaleString()}</div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 w-full md:justify-end">
                     <select
                       value={order.draftStatus ?? order.status}
                       onChange={(e) => onUpdateMeta(order.id, { draftStatus: e.target.value as OrderStatus })}
                       disabled={readonly}
-                      className="border border-slate-200 rounded px-2 py-1 text-xs bg-white"
+                      className="border border-slate-200 rounded-md px-2 py-1.5 text-sm bg-white w-full sm:w-auto"
                     >
                       <option value="pending">Pendiente</option>
                       <option value="confirmed">Confirmado</option>
                       <option value="cancelled">Cancelado</option>
                       <option value="paid">Pagado</option>
                     </select>
-                    <div className="flex items-center gap-1 text-xs text-slate-600">
-                      <BadgeDollarSign size={14} />
+                    <div className="flex items-center gap-2 text-sm text-slate-600 w-full sm:w-auto">
+                      <BadgeDollarSign size={16} />
                       <select
                         value={order.draftPaymentMethod ?? ''}
                         onChange={(e) => onUpdateMeta(order.id, { draftPaymentMethod: e.target.value ? (e.target.value as PaymentMethod) : null })}
                         disabled={readonly}
-                        className="border border-slate-200 rounded px-2 py-1 text-xs bg-white"
+                        className="border border-slate-200 rounded-md px-2 py-1.5 text-sm bg-white w-full sm:w-auto"
                       >
                         <option value="">Sin método</option>
                         <option value="cash">Efectivo</option>
@@ -230,7 +312,7 @@ function Section({ title, items, onEditItem, onSave, onConfirm, onUpdateMeta, re
                               min={1}
                               value={item.quantity}
                               onChange={e => onEditItem(order.id, items => items.map((it, i) => i === idx ? { ...it, quantity: Number(e.target.value) } : it))}
-                              className="w-20 border border-slate-200 rounded px-2 py-1 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                              className="w-20 border border-slate-200 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
                             />
                           )}
                         </td>
@@ -244,24 +326,24 @@ function Section({ title, items, onEditItem, onSave, onConfirm, onUpdateMeta, re
                 </table>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="text-sm text-slate-500">
                   Total: <span className="font-bold text-slate-800">${order.draftItems.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString()}</span>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {!readonly && (
                     <>
                       <button
                         onClick={() => onSave(order)}
                         disabled={order.saving}
-                        className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center gap-2 disabled:opacity-50"
+                        className="px-3 py-2 text-sm rounded-lg border border-slate-200 bg-white hover:bg-slate-50 flex items-center gap-2 justify-center disabled:opacity-50"
                       >
                         <Save size={14} /> Guardar cambios
                       </button>
                       <button
                         onClick={() => onConfirm(order)}
                         disabled={order.saving}
-                        className="px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-50"
+                        className="px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2 justify-center disabled:opacity-50"
                       >
                         <CheckCircle2 size={16} /> Confirmar y descontar stock
                       </button>

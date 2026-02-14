@@ -38,10 +38,10 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
             <div className="flex items-center space-x-4">
               <Link
                 to="/store"
-                className="hidden sm:inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold shadow-sm hover:bg-emerald-700 transition-colors"
+                className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold shadow-sm hover:bg-emerald-700 transition-colors"
               >
-                <Store size={18} />
-                Ir a la tienda
+                <Store size={14} />
+                <span className="leading-none">Ir a la tienda</span>
               </Link>
               <div className="hidden md:block text-right">
                 <p className="text-sm font-medium">{user.name}</p>
