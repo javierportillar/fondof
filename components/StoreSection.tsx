@@ -393,7 +393,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
       <section aria-labelledby="category-filters">
       <h2 id="category-filters" className="sr-only">Filtrar por categoría</h2>
       <LayoutGroup>
-        <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="grid grid-cols-3 gap-2 pb-2 sm:flex sm:flex-wrap sm:gap-3 sm:overflow-x-auto scrollbar-hide">
           {categories.map(category => {
             const Icon = category.icon;
             const isSelected = selectedCategory === category.id;
@@ -401,7 +401,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className="relative flex items-center space-x-2 px-4 py-2 rounded-full whitespace-nowrap border border-slate-200 overflow-hidden transition-all bg-white"
+                className="relative w-full sm:w-auto flex items-center justify-center sm:justify-start space-x-2 px-2 sm:px-3 py-2 rounded-full whitespace-nowrap border border-slate-200 overflow-hidden transition-all bg-white text-[11px] sm:text-sm"
               >
                 {isSelected && (
                   <motion.span
@@ -411,7 +411,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-2">
-                  <Icon size={18} className={isSelected ? 'text-white' : category.isGolden ? 'text-amber-500' : 'text-slate-600'} />
+                  <Icon size={16} className={isSelected ? 'text-white' : category.isGolden ? 'text-amber-500' : 'text-slate-600'} />
                   <span className={`font-medium ${isSelected ? 'text-white' : 'text-slate-600'}`}>{category.name}</span>
                 </span>
               </button>
@@ -432,7 +432,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
       )}
 
       <motion.div
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-6"
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6"
       >
         {filteredProducts.map(product => {
           const inCart = cart.find(c => c.product.id === product.id);
@@ -455,7 +455,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
                 </div>
               )}
 
-              <div className="relative h-48 overflow-hidden bg-slate-100">
+              <div className="relative h-40 sm:h-48 overflow-hidden bg-slate-100">
                 <img 
                     src={product.image} 
                     alt={product.name} 
