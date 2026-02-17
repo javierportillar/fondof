@@ -35,7 +35,7 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
                 </span>
               </Link>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <Link
                 to="/store"
                 className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold shadow-sm hover:bg-emerald-700 transition-colors"
@@ -60,9 +60,9 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
       </div>
 
       {/* Navigation Tabs (Sub-header) */}
-      <div className="bg-white border-b border-slate-200 shadow-sm">
+      <div className="bg-white border-b border-slate-200 shadow-sm overflow-x-auto">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-             <div className="flex space-x-6">
+             <div className="flex space-x-6 whitespace-nowrap min-w-max">
                  <Link 
                     to="/admin" 
                     className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center transition-colors ${
@@ -72,7 +72,7 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
                     }`}
                  >
                      <Users size={18} className="mr-2" />
-                     Gestión de Usuarios
+                     Usuarios
                  </Link>
                  <Link 
                     to="/admin/products" 
@@ -83,7 +83,7 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
                     }`}
                  >
                      <ShoppingBag size={18} className="mr-2" />
-                     Gestión de Productos
+                     Productos
                  </Link>
                  <Link 
                     to="/admin/orders" 
@@ -94,7 +94,18 @@ export default function AdminLayout({ user, onLogout }: AdminLayoutProps) {
                     }`}
                  >
                      <ClipboardList size={18} className="mr-2" />
-                     Gestión de Pedidos
+                     Pedidos
+                 </Link>
+                 <Link 
+                    to="/admin/suggestions" 
+                    className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center transition-colors ${
+                        location.pathname.includes('/suggestions')
+                        ? 'border-emerald-500 text-emerald-600' 
+                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                    }`}
+                 >
+                     <ShoppingBag size={18} className="mr-2" />
+                     Sugerencias
                  </Link>
              </div>
          </div>

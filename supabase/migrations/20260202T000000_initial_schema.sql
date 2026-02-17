@@ -117,6 +117,15 @@ create table if not exists public.orders (
   confirmed_at timestamptz
 );
 
+-- Sugerencias de productos (usuario sugiere nombre + imagen en base64)
+create table if not exists public.product_suggestions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users(id) on delete set null,
+  product_name text not null,
+  image_base64 text not null,
+  created_at timestamptz not null default now()
+);
+
 -------------------------------------------------------------------------------
 -- Índices
 -------------------------------------------------------------------------------
@@ -135,6 +144,7 @@ create index if not exists idx_purchase_items_purchase on public.purchase_items 
 create index if not exists idx_purchase_items_product on public.purchase_items (product_id);
 create index if not exists idx_orders_status on public.orders (status);
 create index if not exists idx_orders_created_at on public.orders (created_at desc);
+create index if not exists idx_product_suggestions_created_at on public.product_suggestions (created_at desc);
 
 -------------------------------------------------------------------------------
 -- Row Level Security
@@ -146,6 +156,7 @@ alter table public.savings_goals enable row level security;
 alter table public.loans enable row level security;
 alter table public.products enable row level security;
 alter table public.orders enable row level security;
+alter table public.product_suggestions enable row level security;
 
 -- Policies: usuarios estándar (USER) solo ven/modifican lo suyo; admin todo.
 
@@ -266,6 +277,17 @@ drop policy if exists orders_update on public.orders;
 create policy orders_update
   on public.orders for update
   using (true)
+  with check (true);
+
+-- PRODUCT_SUGGESTIONS (abierto para lectura/escritura desde el frontend)
+drop policy if exists product_suggestions_select on public.product_suggestions;
+create policy product_suggestions_select
+  on public.product_suggestions for select
+  using (true);
+
+drop policy if exists product_suggestions_insert on public.product_suggestions;
+create policy product_suggestions_insert
+  on public.product_suggestions for insert
   with check (true);
 
 

@@ -126,6 +126,14 @@ export interface Order {
   confirmedAt?: string;
 }
 
+export interface ProductSuggestion {
+  id: string;
+  userId?: string | null;
+  productName: string;
+  imageBase64: string;
+  createdAt: string;
+}
+
 export enum Role {
   ADMIN = 'ADMIN',
   USER = 'USER'

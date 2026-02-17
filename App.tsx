@@ -29,6 +29,7 @@ import ProductForm from './components/admin/ProductForm';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 import Orders from './components/admin/Orders';
+import Suggestions from './components/admin/Suggestions';
 
 function AppRoutes() {
   const { profile, loading, login, logout } = useAuth();
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="products" element={<ProductList />} />
         <Route path="products/new" element={<ProductForm />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="suggestions" element={<Suggestions />} />
         <Route path="users/:userId/loans" element={<LoanManager />} />
         <Route path="users/:userId/savings" element={<SavingsManager />} />
         <Route path="users/:userId/savings/new" element={<SavingsForm />} />

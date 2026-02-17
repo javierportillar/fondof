@@ -20,6 +20,12 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [suggestName, setSuggestName] = useState('');
+  const [suggestImage, setSuggestImage] = useState<string | null>(null);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestSuccess, setSuggestSuccess] = useState<string | null>(null);
+  const [isHuman, setIsHuman] = useState(false);
 
   // Configuración del número de WhatsApp (Reemplazar con el número real de la cooperativa)
   const WHATSAPP_NUMBER = "573105830555"; 
@@ -129,6 +135,52 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
       .catch(err => {
         console.error('Error creando pedido', err);
       });
+  };
+
+  const handleSuggestionImage = (file: File | null) => {
+    if (!file) {
+      setSuggestImage(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSuggestImage(String(reader.result));
+      setSuggestError(null);
+    };
+    reader.onerror = () => setSuggestError('No se pudo leer la imagen.');
+    reader.readAsDataURL(file);
+  };
+
+  const submitSuggestion = async () => {
+    if (!suggestName.trim() || !suggestImage) {
+      setSuggestError('Debes escribir el nombre y subir una imagen.');
+      return;
+    }
+    if (!isHuman) {
+      setSuggestError('Confirma que eres humano.');
+      return;
+    }
+    try {
+      setSuggesting(true);
+      setSuggestError(null);
+      setSuggestSuccess(null);
+      const { error } = await supabase
+        .from('product_suggestions')
+        .insert([{
+          user_id: userId ?? null,
+          product_name: suggestName.trim(),
+          image_base64: suggestImage
+        }]);
+      if (error) throw error;
+      setSuggestName('');
+      setSuggestImage(null);
+      setIsHuman(false);
+      setSuggestSuccess('Gracias por tu sugerencia. La revisaremos pronto.');
+    } catch (e: any) {
+      setSuggestError(e.message || 'No se pudo enviar la sugerencia.');
+    } finally {
+      setSuggesting(false);
+    }
   };
 
   const registerPurchase = async () => {
@@ -505,6 +557,75 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
             <p className="text-slate-400 text-sm">Intenta con otro término de búsqueda o categoría</p>
         </div>
       )}
+      </section>
+
+      {/* Product Suggestions */}
+      <section aria-labelledby="product-suggestions" className="bg-white border border-slate-200 rounded-2xl p-6">
+        <h2 id="product-suggestions" className="text-lg font-bold text-slate-800">¿No encuentras un producto?</h2>
+        <p className="text-slate-500 text-sm mt-1">Sugiere un producto con su nombre e imagen.</p>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase">Nombre del producto</label>
+            <input
+              type="text"
+              value={suggestName}
+              onChange={(e) => setSuggestName(e.target.value)}
+              className="w-full mt-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+              placeholder="Ej: Leche descremada 1L"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase">Imagen (máx. 300 KB)</label>
+            <label className="mt-1 w-full flex items-center justify-center gap-2 border border-dashed border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 cursor-pointer hover:bg-slate-50">
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600">
+                📷
+              </span>
+              Subir foto
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => handleSuggestionImage(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {suggestImage && (
+          <div className="mt-3 flex items-center gap-3">
+            <img src={suggestImage} alt="Vista previa" className="w-16 h-16 rounded-lg object-cover border border-slate-200" />
+            <span className="text-xs text-slate-500">Vista previa</span>
+          </div>
+        )}
+
+        <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={isHuman}
+            onChange={(e) => setIsHuman(e.target.checked)}
+            className="accent-emerald-600 w-4 h-4"
+          />
+          No soy un robot
+        </label>
+
+        {suggestError && (
+          <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-2">{suggestError}</div>
+        )}
+        {suggestSuccess && (
+          <div className="mt-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-2">{suggestSuccess}</div>
+        )}
+
+        <div className="mt-4">
+          <button
+            onClick={submitSuggestion}
+            disabled={suggesting}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 disabled:opacity-60"
+          >
+            Enviar sugerencia
+          </button>
+        </div>
       </section>
 
       {/* Cart Sidebar / Modal */}
