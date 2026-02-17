@@ -26,6 +26,7 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
   const [suggesting, setSuggesting] = useState(false);
   const [suggestSuccess, setSuggestSuccess] = useState<string | null>(null);
   const [isHuman, setIsHuman] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Configuración del número de WhatsApp (Reemplazar con el número real de la cooperativa)
   const WHATSAPP_NUMBER = "573105830555"; 
@@ -219,6 +220,8 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
   };
 
   useEffect(() => {
+    const ua = navigator.userAgent || '';
+    setIsMobile(/Android|iPhone|iPad|iPod/i.test(ua));
     const loadProducts = async () => {
       try {
         setLoading(true);
@@ -576,20 +579,32 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
             />
           </div>
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase">Imagen (máx. 300 KB)</label>
-            <label className="mt-1 w-full flex items-center justify-center gap-2 border border-dashed border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 cursor-pointer hover:bg-slate-50">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600">
-                📷
-              </span>
-              Subir foto
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => handleSuggestionImage(e.target.files?.[0] || null)}
-                className="hidden"
-              />
-            </label>
+            <label className="text-xs font-bold text-slate-500 uppercase">Imagen</label>
+            <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {isMobile && (
+                <label className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 cursor-pointer hover:bg-slate-50">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600">📷</span>
+                  Tomar foto
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handleSuggestionImage(e.target.files?.[0] || null)}
+                    className="hidden"
+                  />
+                </label>
+              )}
+              <label className="w-full flex items-center justify-center gap-2 border border-dashed border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 cursor-pointer hover:bg-slate-50">
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600">🖼️</span>
+                {isMobile ? 'Elegir de galería' : 'Elegir archivo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleSuggestionImage(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
         </div>
 
