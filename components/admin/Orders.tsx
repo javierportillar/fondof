@@ -122,7 +122,15 @@ export default function Orders() {
     }
   };
 
-  if (loading) return <div className="p-4 text-slate-500">Cargando pedidos...</div>;
+  if (loading) {
+    return (
+      <div className="p-4 text-slate-500 text-sm flex items-center gap-2">
+        <span className="inline-block w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <span className="font-semibold uppercase tracking-wide text-[11px]">CARGANDO</span>
+        <span className="text-slate-400">pedidos...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

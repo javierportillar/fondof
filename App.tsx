@@ -35,7 +35,12 @@ function AppRoutes() {
   const { profile, loading, login, logout } = useAuth();
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen text-slate-500 text-sm gap-2">
+        <span className="inline-block w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <span className="font-semibold uppercase tracking-wide text-[11px]">CARGANDO</span>
+      </div>
+    );
   }
 
   return (

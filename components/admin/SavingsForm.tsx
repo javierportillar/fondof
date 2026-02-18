@@ -93,7 +93,14 @@ export default function SavingsForm() {
     }
   }, [editingTransaction, locationState]);
 
-  if (loading) return <div>Cargando...</div>;
+  if (loading) {
+    return (
+      <div className="p-4 text-slate-500 text-sm flex items-center gap-2">
+        <span className="inline-block w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <span className="font-semibold uppercase tracking-wide text-[11px]">CARGANDO</span>
+      </div>
+    );
+  }
   if (error) return <div>{error}</div>;
   if (!user) return <div>Usuario no encontrado</div>;
   if (isEditing && !editingTransaction) return <div>Transacción no encontrada</div>;

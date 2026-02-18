@@ -90,8 +90,10 @@ export default function UserList() {
   return (
     <div className="space-y-6">
       {loading && (
-        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-sm">
-          Cargando usuarios...
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 text-sm flex items-center gap-2">
+          <span className="inline-block w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <span className="font-semibold uppercase tracking-wide text-[11px]">CARGANDO</span>
+          <span className="text-slate-400">usuarios...</span>
         </div>
       )}
 

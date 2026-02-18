@@ -483,7 +483,11 @@ export default function StoreSection({ userId, profile, onLogout }: StoreSection
         <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
       )}
       {loading && (
-        <div className="p-4 text-slate-500 text-sm">Cargando productos...</div>
+        <div className="p-4 text-slate-500 text-sm flex items-center gap-2">
+          <span className="inline-block w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <span className="font-semibold uppercase tracking-wide text-[11px]">CARGANDO</span>
+          <span className="text-slate-400">productos...</span>
+        </div>
       )}
 
       <motion.div
