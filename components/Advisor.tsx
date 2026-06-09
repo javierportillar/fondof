@@ -53,6 +53,13 @@ export default function Advisor({ user }: AdvisorProps) {
       setMessages(prev => [...prev, botMsg]);
     } catch (error) {
       console.error(error);
+      const botMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        text: error instanceof Error ? error.message : 'No se pudo obtener respuesta del asesor inteligente.',
+        timestamp: Date.now()
+      };
+      setMessages(prev => [...prev, botMsg]);
     } finally {
       setIsLoading(false);
     }
